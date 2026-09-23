@@ -28,8 +28,8 @@ const pipeline_role_defaults = Object.freeze({
 	'cross-check': 'better',
 	learn: 'basic',
 })
-const switch_names = Object.freeze(['target-doc', 'workspace-dir', 'cli-provider', 'auto-reply', 'log-verbosity', 'inline-reply', 'lang', 'streams', 'ask-names', 'allow-ag', 'large-work-minutes', 'git-timeout-ms', 'allowed-worker', 'review-policy', 'completion-cleanup', 'completion-cleanup-interval-days'])
-const optional_switch_names = Object.freeze(['completion-cleanup', 'completion-cleanup-interval-days', 'log-verbosity', 'inline-reply', 'git-timeout-ms'])
+const switch_names = Object.freeze(['target-doc', 'workspace-dir', 'cli-provider', 'auto-reply', 'log-verbosity', 'inline-reply', 'lang', 'streams', 'stream-auto-push', 'ask-names', 'allow-ag', 'large-work-minutes', 'git-timeout-ms', 'allowed-worker', 'review-policy', 'completion-cleanup', 'completion-cleanup-interval-days'])
+const optional_switch_names = Object.freeze(['completion-cleanup', 'completion-cleanup-interval-days', 'log-verbosity', 'inline-reply', 'git-timeout-ms', 'stream-auto-push'])
 const legacy_switch_names = Object.freeze(['metrics'])
 const completion_cleanup_defaults = Object.freeze({ 'completion-cleanup': 'off', 'completion-cleanup-interval-days': 7 })
 const notebook_control_defaults = Object.freeze({ 'log-verbosity': 'all', 'inline-reply': 'off' })
@@ -168,6 +168,7 @@ const host_template_values = {
       ...notebook_control_defaults,
       lang: 'en',
       streams: 'ask',
+      'stream-auto-push': 'on',
       'ask-names': 'on',
       'allow-ag': 'on',
       'large-work-minutes': 120,
@@ -216,6 +217,7 @@ const host_template_values = {
       ...notebook_control_defaults,
       lang: 'en',
       streams: 'ask',
+      'stream-auto-push': 'on',
       'ask-names': 'on',
       'allow-ag': 'on',
       'large-work-minutes': 120,
@@ -663,6 +665,7 @@ const validate_switches = (config, options, expected_switches, provider_values, 
 		'log-verbosity': ['off', 'wip', 'all'],
 		'inline-reply': ['on', 'off'],
 		streams: ['ask', 'always', 'off'],
+		'stream-auto-push': ['on', 'off'],
 		'ask-names': ['on', 'off'],
 		'allow-ag': ['on', 'off', 'ask'],
 		'review-policy': ['prefer-independent', 'require-independent'],
@@ -970,6 +973,7 @@ const canonical_config = config => ({
 		...Object.fromEntries(Object.keys(notebook_control_defaults).filter(key => has_own(config.switches, key)).map(key => [key, config.switches[key]])),
 		lang: config.switches.lang,
 		streams: config.switches.streams,
+		...(has_own(config.switches, 'stream-auto-push') ? { 'stream-auto-push': config.switches['stream-auto-push'] } : {}),
 		'ask-names': config.switches['ask-names'],
 		'allow-ag': config.switches['allow-ag'],
 		'large-work-minutes': config.switches['large-work-minutes'],
@@ -1914,7 +1918,7 @@ const render_dispatch_substitution = format_dispatch_substitution
 const switch_display_value = (config, key) => {
 	if (Array.isArray(config.switches[key])) return JSON.stringify(config.switches[key])
 	if (has_own(config.switches, key)) return config.switches[key]
-	return completion_cleanup_defaults[key] ?? notebook_control_defaults[key] ?? (key === 'git-timeout-ms' ? git_timeout_default_ms : config.switches[key])
+	return completion_cleanup_defaults[key] ?? notebook_control_defaults[key] ?? (key === 'stream-auto-push' ? 'on' : key === 'git-timeout-ms' ? git_timeout_default_ms : config.switches[key])
 }
 
 const format_settings_display = (config, options = {}) => {
@@ -1950,6 +1954,7 @@ const format_settings_display = (config, options = {}) => {
 		'- inline-reply: on or off (default off); also display the saved Reply; use inline-reply: <value>',
 		'- lang: non-empty language tag or existing language name; use lang: <value>',
 		'- streams: ask, always, or off; use streams: <value>',
+		'- stream-auto-push: on or off (default on); controls Agentflow pushes for feature streams; use stream-auto-push: <value>',
 		'- ask-names: on or off; use ask-names: <value>',
 		'- allow-ag: on, off, or ask; use allow-ag: <value>',
 		'- large-work-minutes: integer from 1 through 10080; use large-work-minutes: <value>',

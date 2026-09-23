@@ -168,7 +168,7 @@ test('version-8 templates contain the exact switches and defaults', () => {
 		const config = settings.make_template(host)
 		assert.equal(config['schema-version'], 8)
 		assert.deepEqual(Object.keys(config.switches), [
-		'target-doc', 'workspace-dir', 'cli-provider', 'auto-reply', 'log-verbosity', 'inline-reply', 'lang', 'streams', 'ask-names', 'allow-ag', 'large-work-minutes', 'git-timeout-ms', 'allowed-worker', 'review-policy', 'completion-cleanup', 'completion-cleanup-interval-days',
+		'target-doc', 'workspace-dir', 'cli-provider', 'auto-reply', 'log-verbosity', 'inline-reply', 'lang', 'streams', 'stream-auto-push', 'ask-names', 'allow-ag', 'large-work-minutes', 'git-timeout-ms', 'allowed-worker', 'review-policy', 'completion-cleanup', 'completion-cleanup-interval-days',
 		])
 		assert.equal(config.switches['allow-ag'], 'on')
 		assert.equal(config.switches['large-work-minutes'], 120)
@@ -177,6 +177,7 @@ test('version-8 templates contain the exact switches and defaults', () => {
 		assert.equal(config.switches['review-policy'], 'prefer-independent')
 		assert.equal(config.switches['completion-cleanup'], 'off')
 		assert.equal(config.switches['completion-cleanup-interval-days'], 7)
+		assert.equal(config.switches['stream-auto-push'], 'on')
 		assert.equal(config['external-workers'].length, 2)
 		assert.equal(settings.validate_config(config, { active_host: host, ...all_executables }).valid, true)
 	}
@@ -202,6 +203,19 @@ test('schema-8 configs may omit optional cleanup switches and changes/help expos
 	let help_text = ''
 	assert.equal(settings.cli_main(['help'], { output: value => { help_text = value }, error: () => {} }), 0)
 	assert.match(help_text, /completion-cleanup-interval-days/)
+})
+
+test('stream-auto-push defaults to on and accepts an independent off setting', () => {
+	const config = settings.make_template('codex')
+	delete config.switches['stream-auto-push']
+	assert.equal(settings.validate_config(config, { active_host: 'codex', ...all_executables }).valid, true)
+	const changed = settings.apply_changes(config, ['stream-auto-push: off'], { active_host: 'codex', ...all_executables })
+	assert.equal(changed.config.switches['stream-auto-push'], 'off')
+	const invalid = settings.make_template('codex')
+	invalid.switches['stream-auto-push'] = 'maybe'
+	expect_invalid(invalid, /switches\.stream-auto-push.*one of/)
+	const display = settings.format_settings_display(config, all_executables)
+	assert.match(display, /stream-auto-push: on/)
 })
 
 test('profile validation accepts the exact v8 shape and diagnoses legacy worker keys', () => {

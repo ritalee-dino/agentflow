@@ -137,3 +137,19 @@ test('workflow execution checks consume shared native evidence and reject failed
   assert.equal(lint(record).status, 'pass');
   assert.equal(lint({ ...record, acceptance: { ...record.acceptance, accepted: false } }).status, 'fail');
 });
+
+test('review rejections name the record kind and the expected shape', () => {
+  const f = fixture();
+  const detail = (value, decision = f.decision) => lint_cross_check(f.round(value), f.root, decision).detail;
+  const misplaced = { ...f.record, report: '.agentflow/review.md' };
+  f.write(misplaced.report, 'placeholder\n');
+  assert.match(detail(misplaced), /^host review report path must belong to the current Ask work key; .*starting with A-001-/);
+  assert.match(detail({ ...f.record, independence: { ...f.record.independence, context: 'isolated' } }), /context "shared"\|"fresh"\|"unknown"/);
+  assert.match(detail({ ...f.record, source: { kind: 'no-git', files: [{ path: 'product.js', sha256: 'ABC' }] } }), /64 lowercase hexadecimal/);
+  assert.match(detail({ ...f.record, source: { kind: 'no-git', files: [{ path: 'product.js', sha256: 'a'.repeat(64) }] } }), /use source \{"kind": "git"/);
+  f.write(f.record.report, `* _2026-09-19 15:30:00 +0800 (fixture/unknown)_\n\nReviewed implementation commit: ${f.record.source.commit}\n\nVerdict: PASS\n\nSelf-check: inspected product.\n`);
+  assert.match(detail(f.record), /^host review report must contain exactly one Outcome: PASS verdict \(found 0\)/);
+  f.save_report(f.record.source);
+  f.write('product.js', 'module.exports = 2;\n');
+  assert.match(detail(f.record), /unreviewed changes after the review target: product\.js\b.*; commit them .*Non-behavioral change: <path>/);
+});

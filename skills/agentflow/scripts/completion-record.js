@@ -290,7 +290,7 @@ const validate_review_record = (record, policy = {}) => {
       || !['shared', 'fresh', 'unknown'].includes(independence.context)
       || !['shared', 'restricted', 'unknown'].includes(independence.permissions)
       || !['same', 'different', 'unknown'].includes(independence.family)
-      || ![true, false, 'unknown'].includes(independence.read_only_enforced)) return 'review must distinguish separation, context, permissions, family and read-only enforcement'
+      || ![true, false, 'unknown'].includes(independence.read_only_enforced)) return 'review must distinguish separation, context, permissions, family and read-only enforcement: independence needs separate_reviewer true|false, context "shared"|"fresh"|"unknown", permissions "shared"|"restricted"|"unknown", family "same"|"different"|"unknown" and read_only_enforced true|false|"unknown"'
   if (policy.enforced_read_only_required === true && independence.read_only_enforced !== true) return 'required read-only enforcement is not proven'
   if (policy.fresh_context_required === true && independence.context !== 'fresh') return 'required fresh review context is not proven'
   if (kind === 'host') {
@@ -318,7 +318,7 @@ const validate_review_record = (record, policy = {}) => {
     if (!Array.isArray(source.files) || source.files.length === 0 || source.files.length > 128) return 'no-Git review needs a bounded declared file manifest'
     const names = new Set()
     for (const file of source.files) {
-      if (!object(file) || !text(file.path) || names.has(file.path) || !/^[a-f0-9]{64}$/u.test(file.sha256 || '')) return 'no-Git source files need unique paths and SHA-256 identities'
+      if (!object(file) || !text(file.path) || names.has(file.path) || !/^[a-f0-9]{64}$/u.test(file.sha256 || '')) return 'no-Git source files need unique paths and SHA-256 identities (sha256 is 64 lowercase hexadecimal characters)'
       names.add(file.path)
     }
     if (Object.hasOwn(source, 'commit')) return 'no-Git review must not invent a commit'

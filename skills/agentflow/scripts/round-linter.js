@@ -1668,6 +1668,7 @@ const lint_cross_check = (devlog_text, project_root, decision, metadata_context 
   }
 
   const relative_path = review_match[1].trim();
+  const report_label = review_record ? `${review_record.kind.replace('-', ' ')} report` : 'external review report';
   let root;
   try {
     root = node_fs.realpathSync(node_path.resolve(project_root));
@@ -1676,27 +1677,27 @@ const lint_cross_check = (devlog_text, project_root, decision, metadata_context 
   }
   const report_path = node_path.resolve(root, relative_path);
   if (report_path === root || !report_path.startsWith(root + node_path.sep)) {
-    return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', 'external review report path must stay inside the repository');
+    return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', `${report_label} path must stay inside the repository`);
   }
   const ask_id = /^# → Ask \/ (A-\d+)/mu.exec(last_round)?.[1];
   if (!ask_id || !relative_path.split(/[\\/]/u).some(part => part.startsWith(ask_id + '-'))) {
-    return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', 'external review report path must belong to the current Ask work key');
+    return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', `${report_label} path must belong to the current Ask work key${ask_id ? `; put it under a directory or file name starting with ${ask_id}-, for example <workspace-dir>/artifacts/${ask_id}-<topic>/review.md` : ''}`);
   }
 
   try {
     const report_stat = node_fs.lstatSync(report_path);
     if (!report_stat.isFile() || report_stat.isSymbolicLink() || report_stat.size === 0 || report_stat.size > max_artifact_bytes) {
-      return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', 'external review report must be one bounded regular non-symlink file');
+      return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', `${report_label} must be one bounded regular non-symlink file`);
     }
     if (node_fs.realpathSync(report_path) !== report_path) {
-      return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', 'external review report resolved to a different path');
+      return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', `${report_label} resolved to a different path`);
     }
     const report = unfenced_text(node_fs.readFileSync(report_path, 'utf8'));
     const lines = split_artifact_lines(report);
     const self_checks = lines.filter(line => line.startsWith('Self-check:'));
     const stamps = lines.filter(line => artifact_opening_stamp_pattern.test(line));
     if (stamps.length !== 1 || self_checks.length !== 1 || !artifact_self_check_pattern.test(self_checks[0])) {
-      return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', 'external review report does not have the required worker stamp and final Self-check boundary');
+      return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', `${report_label} does not have the required worker stamp and final Self-check boundary; expected exactly one opening line \`* _YYYY-MM-DD HH:MM:SS ±HHMM (<model>/<effort>)_\` and one final line \`Self-check: <summary>\` (found ${stamps.length} stamp and ${self_checks.length} Self-check lines)`);
     }
     presentation_warning = lines[0] !== stamps[0] || lines[lines.length - 1] !== self_checks[0];
     const report_fields = plain_record_text(report);
@@ -1704,27 +1705,27 @@ const lint_cross_check = (devlog_text, project_root, decision, metadata_context 
     const reviewed_match = reviewed_matches[0];
     const verdicts = [...report_fields.matchAll(verdict_pattern)].map(match => match[1].toUpperCase());
     if (verdicts.length !== 1) {
-      return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', 'external review report must contain exactly one verdict');
+      return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', `${report_label} must contain exactly one verdict: one \`Verdict: PASS|BLOCKING\` line (found ${verdicts.length})`);
     }
     const no_git = review_record?.source.kind === 'no-git';
     if (verdicts[0] !== 'PASS' || (!no_git && reviewed_matches.length !== 1)) {
-      return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', 'external review report must record Verdict: PASS and the reviewed 40-character implementation commit');
+      return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', `${report_label} must record Verdict: PASS and one \`Reviewed implementation commit: <40-character commit>\` line`);
     }
     for (const [dimension, pattern] of Object.entries(cross_check_dimension_patterns)) {
       const dimension_verdicts = [...report_fields.matchAll(pattern)].map(match => match[1].toUpperCase());
       if (dimension_verdicts.length !== 1 || dimension_verdicts[0] !== 'PASS') {
-        return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', `external review report must contain exactly one ${dimension[0].toUpperCase()}${dimension.slice(1)}: PASS verdict`);
+        return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', `${report_label} must contain exactly one ${dimension[0].toUpperCase()}${dimension.slice(1)}: PASS verdict (found ${dimension_verdicts.length})`);
       }
     }
     if (no_git) {
-      if (require('./repository-state').detect(root).state !== 'plain') throw Error('no-Git review cannot replace Git source evidence');
+      if (require('./repository-state').detect(root).state !== 'plain') throw Error('no-Git review cannot replace Git source evidence; in a Git repository use source {"kind": "git", "commit": "<40-character implementation commit>"}');
       const identity = require('./completion-record').verify_review_files(root, review_record.source);
       const identities = [...report_fields.matchAll(/^Reviewed source sha256:\s+([a-f0-9]{64})\s*$/gmu)];
       if (reviewed_matches.length || identities.length !== 1 || identities[0][1] !== identity) throw Error('review report does not match the declared no-Git source');
       return make_check('cross_check', 'Review evidence matches its policy', 'pass', `${review_record.kind === 'host-review' ? 'host review' : review_record.kind} passed for the current declared file digests; ${review_record.limitations.join('; ')}`);
     }
     if (reviewed_match[1] !== implementation_match[1]) {
-      return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', 'external review report commit does not match the round\'s final implementation commit');
+      return make_check('cross_check', 'Requested implementation has an external cross-check', 'fail', `${report_label} commit does not match the round's final implementation commit`);
     }
     const git = args => node_child_process.execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000, maxBuffer: 4 * 1024 * 1024 });
     const target = implementation_match[1];
@@ -1737,7 +1738,7 @@ const lint_cross_check = (devlog_text, project_root, decision, metadata_context 
         .filter(file => !ignored_working.has(file));
       const changed = [...new Set([...committed, ...working])].filter(Boolean);
       const stale = changed.filter(file => file !== relative_path && review_eligible(file, { ...decision, bootstrap_files: [] }));
-      if (stale.length) return make_check('cross_check', 'Reviewed source is current', 'fail', `unreviewed changes after the review target: ${stale.join(', ')}`);
+      if (stale.length) return make_check('cross_check', 'Reviewed source is current', 'fail', `unreviewed changes after the review target: ${stale.join(', ')}; commit them before the reviewed commit and review them, or record \`Non-behavioral change: <path> — <reason>\` for each path that changes no behavior`);
     } catch {
       return make_check('cross_check', 'Reviewed source is current', 'fail', 'review target must be an existing ancestor commit with available current Git evidence');
     }

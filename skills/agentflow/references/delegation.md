@@ -24,7 +24,11 @@ Each profile has a unique id, literal `command`, priority 1–5, optional family
 
 Quota probes are optional, manual, and start in a fresh temporary directory containing no project instructions and no Git remote. If project files are essential, use a disposable no-remote clone with no push.
 
-For every selected attempt, freeze one narrow brief with the task boundary, inputs, allowed outputs, requested and usable model/effort, source identity, candidate kind, and known limits. Native actions are data for the interactive host: they contain the frozen brief and required controls, never invented executable flags. Host-direct actions name the bounded work and why direct execution was selected. Reuse `delegation-route.js`'s `select_executor_action`, `next_executor_action`, and `validate_execution_record` for selection, finite availability fallback, and shared evidence.
+For every selected attempt, freeze one narrow brief with the task boundary, inputs, allowed outputs, requested and usable model/effort, source identity, candidate kind, and known limits. Native actions are data for the interactive host: they contain the frozen brief and required controls, never invented executable flags.
+
+A native tool with model or effort parameters reports only the values it accepts as `controls.models` and `controls.efforts`, and `tiers` only when configured tier values name models that tool accepts. Launch the selected native action with its `controls.model` and `controls.effort` through those parameters; the configured or owner-selected Agentflow control is the explicit owner request such a tool may require. Record the model and effort the tool reports, else `inherited`. A tool without such parameters receives no model controls.
+
+Host-direct actions name the bounded work and why direct execution was selected. Reuse `delegation-route.js`'s `select_executor_action`, `next_executor_action`, and `validate_execution_record` for selection, finite availability fallback, and shared evidence.
 
 Only an `unavailable` settled attempt permits a new host selection under unchanged conditions; it does not impose list-ordered fallback. `task-failed`, `cancelled`, and `uncertain` remain terminal until reconciled. Settle process, native handle, or host ownership before a replacement writer begins; a lost native handle is uncertain and blocks a second writer. Record actual model/effort or `inherited`, and never claim a configured preference was used without evidence.
 

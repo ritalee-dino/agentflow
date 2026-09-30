@@ -1,0 +1,6 @@
+# 自動偵測文字檔，並在儲存庫中統一轉為 LF 儲存
+* text=auto
+# 如果有特定的二進位檔案或不想被轉換的檔案，可以手動指定
+*.png binary
+*.jpg binary
+*.exe -crlf

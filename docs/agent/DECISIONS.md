@@ -87,7 +87,12 @@ The richest rationale source is `skills/agentflow/docs/incidents-log.md` (79 inc
 - **[Documented]** `README.md`, CHANGELOG 8.3.0 ("Portable hookless host support").
 - **[Implemented]** `install-hook.js` only writes Claude/Codex configs; generic hosts get `hooks: not_available` and manual capture/close instructions.
 
+## D19. Graduated per-Ask opt-outs that are not aliases
+- **[Documented]** `references/skip-ag.md`, `SKILL.md`, CHANGELOG 8.4.3: `no-ag` skips the whole protocol; `fast-lane` keeps the notebook but waives AG, delegation, new streams and independent review; `skip-ag` waives only the development pipeline and advisors. None changes `ag.json`; each expires with its Ask.
+- **[Implemented]** `fast-lane.js:parse_task_control` shared by `parse_fast_lane` / `parse_skip_ag`; `round-linter.js:lint_round` skips a narrower check set for skip-ag than for fast-lane.
+
 ## Open / uncertain
 - CHANGELOG 8.4.0: native Windows execution of the ownership switch and review-only fixes is stated as unproven.
 - Exact semantics of `internal` (native host tool) execution are mostly policy; code validates records but cannot invoke native tools itself.
-- CHANGELOG 8.3.4 and 8.4.0 note two unresolved pre-existing assertions. Observed on 2026-09-30 at v8.4.0 (unmodified `SKILL.md`): `prompt-compression.test.js` "the always-loaded skill stays within the retained 32 KiB budget" and "the slim front door retains the owner, scope, evidence, and Git boundaries" fail.
+- CHANGELOG 8.3.4 and 8.4.0 note two unresolved pre-existing assertions. Observed on 2026-09-30 at v8.4.0 (unmodified `SKILL.md`): `prompt-compression.test.js` "the always-loaded skill stays within the retained 32 KiB budget" and "the slim front door retains the owner, scope, evidence, and Git boundaries" fail. Re-observed on 2026-10-01 at v8.4.4 (host env markers unset, native Windows): only the 32 KiB budget assertion fails (`SKILL.md` is 32,953 bytes); the front-door assertion passes.
+- CHANGELOG 8.4.3: native Windows and case-sensitive-filesystem checks for its changes are unavailable; no universal host-parity claim.

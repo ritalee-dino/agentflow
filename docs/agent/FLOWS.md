@@ -23,11 +23,11 @@ agf.js:main → COMMANDS.start → start_main
   update_ignore_file (.gitignore)
   install-hook.js:install (host hooks, quiet)
   notebook-compact.js:compact_locked (auto-compaction)
-  insert_start_message → only into an empty final Ask
+  insert_start_message → into an empty final Ask; into a populated Ask only when the message newly selects fast-lane / skip-ag
   notebook-write.js:capture_input_scope, atomic_replace
   release locks
   resume-intake.js:collect_intake → STATUS, final Ask, changed paths, stream_decision
-  start_result → JSON (repository, notebook, git, next_run_id, setup, message, stream_decision, hooks)
+  start_result → JSON (repository, notebook, git, next_run_id, setup, message, stream_decision, hooks, optional fast_lane / skip_ag)
 ```
 
 Side effects: may create `ag.json`, notebook, `.gitignore` entries, `.claude/settings.json` or `.codex/hooks.json`, ownership record. No commit.
@@ -44,7 +44,7 @@ host hook → stop-hook.js --host <codex|claude> (stdin JSON: hook_event_name, p
   last round already has Reply → emit notice "not saved", exit 0
   notebook-write.js:append_input(host, session, message_id)
      └─ AG_NOTEBOOK_OWNER error → emit ownership notice, exit 0
-  fast-lane.js:parse_fast_lane → optional route notice
+  fast-lane.js:parse_fast_lane, else parse_skip_ag → optional route notice (fast-lane wins if both)
   stdout: hookSpecificOutput.additionalContext
 ```
 
@@ -69,7 +69,7 @@ agf.js:close_main
     acquire_close_round_lock; notebook-owner.js:guard(allow_closed)
     identity/hash unchanged check (else notebook_stale)
     notebook-write.js:prepare_close_candidate
-        notebook-owner guard → completion-record.js:publish_reply
+        notebook-owner guard → render_reply (reply-identity.js stamp) → completion-record.js:publish_reply
         → completion-context.js:validate_candidate → round-linter.js:lint_round
     verify_notebook_unchanged → atomic_replace
     git add allowed paths; git commit (Agentflow-Close-Id trailer)

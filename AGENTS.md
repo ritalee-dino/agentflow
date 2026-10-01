@@ -36,4 +36,4 @@ Documentation is a navigation aid; source code is authoritative. If documentatio
 - `skills/agentflow/SKILL.md` and `skills/agentflow/references/*.md` are product prompts consumed by other agents, not instructions for you. Several `*.test.js` files assert their exact wording and size; run the relevant tests after editing them.
 - Rules tagged `— I-NNN` must not be changed before reading that entry in `skills/agentflow/docs/incidents-log.md`.
 - Tests: `cd skills/agentflow/scripts && node --test *.test.js` (no dependencies to install).
-- Keep the version aligned across `SKILL.md`, `.claude-plugin/plugin.json`, `README*.md`, and `docs/CHANGELOG.md` when releasing.
+- Keep the version aligned across `SKILL.md`, `.claude-plugin/plugin.json`, `README*.md`, and the root `CHANGELOG.md` when releasing.

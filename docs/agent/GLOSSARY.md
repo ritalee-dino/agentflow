@@ -68,6 +68,8 @@ Terms as used in this repository. Primary definitions live in `skills/agentflow/
 
 **Fast-lane** — per-Ask mode: host does the work directly, waives AG/delegation/independent review, keeps self-review and checks. `fast-lane.js:parse_fast_lane`; states include `pending` (waiting for a task).
 
+**Skip-ag** — per-Ask control (`skip-ag [task]`, since 8.4.3): forces the direct route and waives only development-pipeline/advisor requirements; keeps normal review, delegation, streams and closeout. States `pending`/`active` like fast-lane. `fast-lane.js:parse_skip_ag`; policy `references/skip-ag.md`. Not an alias of `no-ag` or `fast-lane`.
+
 **`no-ag`, `skip-review:`** — per-Ask owner waivers recognized by `completion-context.js:review_decision`.
 
 **Design Go / Result Go** — explicit owner gates for consequential work (`Design Go: <7-hex commit prefix>`).

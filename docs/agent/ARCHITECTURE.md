@@ -51,7 +51,7 @@ flowchart TD
 - `terminal-preflight.js` — manual/recovery wrapper around `lint_round`.
 - `cross-check-plan.js` — deterministic review-depth selector (`narrow|targeted|full|skip`).
 - `suite-evidence.js`, `tracker-contract.js` — test-suite evidence manifests; tracker template/validation.
-- `reply-identity.js` — derives `<model>/<effort>` stamp from the active session transcript only.
+- `reply-identity.js` — derives `<model>/<effort>` stamp from the active session transcript only (Codex: `$CODEX_HOME/sessions`; Claude since 8.4.3: the single `<CLAUDE_CONFIG_DIR or ~/.claude>/projects/*/<session>.jsonl` whose main-session, same-cwd last assistant turn supplies `message.model` + `effort`, sidechains excluded). Otherwise `<host>/unknown`.
 
 **Configuration**
 - `ag-settings.js` — schema v8 config: templates per host, validation, v7→v8 migration, atomic writes, STATUS formatting, tier resolution, target-doc rename. Shared by almost every module.
@@ -68,7 +68,7 @@ flowchart TD
 - `devlog-guard.js` — pre-commit guard blocking root notebook/config staging on a non-default branch.
 
 **Misc**
-- `fast-lane.js` (`parse_fast_lane`), `local-time.js` (numeric-offset timestamps), `skills-audit.js` (read-only inventory of installed skills).
+- `fast-lane.js` (`parse_fast_lane`, `parse_skip_ag`; both wrap the shared line parser `parse_task_control`), `local-time.js` (numeric-offset timestamps), `skills-audit.js` (read-only inventory of installed skills).
 
 ## Dependency relationships
 

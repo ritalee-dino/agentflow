@@ -10,6 +10,7 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 - **Trigger:** owner says `godev` (or other skill triggers); host runs `node <skill>/scripts/agf.js start --repo <repo> --host <id> --message-stdin --json`.
 - **Entry:** `scripts/agf.js:start_main`.
 - **Core path:** `parse_start_args` → `notebook-owner.js:identity` → `ag-settings.js:initialize_project` or `ensure_configuration` → `update_ignore_file` → `install-hook.js:install` → `notebook-compact.js:compact_locked` → `insert_start_message` → `notebook-write.js:atomic_replace` → `resume-intake.js:collect_intake` → `start_result`/`emit_start_result`.
+- **Route controls at start:** `insert_start_message` also appends a message into a populated Ask when it newly selects `fast-lane` or `skip-ag` (`message.reason` `fast_lane_selected` / `skip_ag_selected`); `start_result` carries `fast_lane` / `skip_ag` from intake when present.
 - **Persistence:** creates `ag.json`, `.agentflow/devlog.md`, `.gitignore` entries, host hook config; ownership record in `.agentflow/.tmp/`.
 - **Policy:** `SKILL.md` "Start here" (answer-recovery gate, `message.reason` handling).
 - **Tests:** `scripts/start-journey.test.js`, `scripts/agf.test.js`, `scripts/resume-intake.test.js`, `scripts/git-optional.test.js`, `scripts/portable-host.test.js`.
@@ -36,6 +37,7 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 - **Trigger:** host pipes a JSON manifest to `agf close --manifest-stdin [--push-authorized]`.
 - **Entry:** `scripts/agf.js:close_main` → `close_validate_manifest` → `close_execute` (Git) or `notebook-write.js:close_round` (plain folder).
 - **Core logic:** `notebook-write.js:prepare_close_candidate` → `completion-record.js:publish_reply` → `completion-context.js:validate_candidate` → `round-linter.js:lint_round`; then `atomic_replace`, `git commit` with `Agentflow-Close-Id` trailer, `save_close_scope`, `notebook-owner.js:release`, `close_push`.
+- **Reply stamp:** `notebook-write.js:render_reply` (passes `host` + `session`) → `reply-identity.js:detect_reply_identity` (Codex and, since 8.4.3, Claude transcripts).
 - **Idempotency:** `close_find_commit` / `match_closed_close` / `read_close_scope` make retries report the existing commit.
 - **Output:** JSON with `display.text` (Reply or `<notebook> updated`, per `inline-reply`).
 - **Policy:** `references/closeout.md` (manifest shape, Reply format, review requirements).
@@ -108,7 +110,7 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 ## 13. AG pipeline, advisors, 3ways
 
 - **Purpose:** multi-stage flow (requirements → codewalk → explore/spike → spec → implementation → security-scan → acceptance → learn) for risky work; `3ways` read-only pre-implementation debate.
-- **Trigger:** `ag`, `agentflow`, `all-in`, `make-plans`, `3ways`, `advisors:`; gated by `allow-ag`.
+- **Trigger:** `ag`, `agentflow`, `all-in`, `make-plans`, `3ways`, `advisors:`; gated by `allow-ag`; overridden for the current Ask by `skip-ag` (section 20).
 - **Mostly policy:** `references/ag.md`, `references/advisors/*.md`. Code support: `delegation-route.js:parse_threeways_trigger`, `plan_threeways_debate`, `execute_threeways_debate`; `round-linter.js:parse_advisor_selection`, `lint_route_decision`, pipeline artifact checks.
 - **Tests:** `scripts/alignment.test.js`, `scripts/round-linter.test.js`, `scripts/delegation-route.test.js`.
 
@@ -137,6 +139,7 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 
 - **Entry:** `scripts/completion-record.js:location`, `publish_reply`, `read_metadata`; `scripts/completion-cleanup.js:sweep_completion_records`.
 - **Controls:** `completion-cleanup`, `completion-cleanup-interval-days`.
+- **Reference versions:** `publish_reply` writes reference `version: 2` (metadata-block removal joins paragraphs with one blank line); `read_reference` accepts 1 and 2, and retries against a version-1 reference keep the original spacing so completed Reply bytes are not rewritten.
 - **Tests:** `scripts/completion-record.test.js`, `scripts/completion-cleanup.test.js`, `scripts/completion-cleanup-integration.test.js`.
 
 ## 18. Skills audit
@@ -148,3 +151,12 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 ## 19. Writing styles and `show-diff`
 
 - Policy only: `references/writing.md`, `SKILL.md` "Writing styles protocol". Protected by `scripts/prompt-compression.test.js`, `scripts/language-contract.test.js`.
+
+## 20. Skip-ag (added 8.4.3)
+
+- **Purpose:** skip only the development pipeline and advisors for the current Ask; keep devlog records, normal independent review, ordinary delegation, streams and closeout. Does not change `ag.json`; expires when the Ask closes. Distinct from `fast-lane` (also waives delegation/streams/independent review) and `no-ag` (skips the whole protocol).
+- **Trigger:** owner line `skip-ag [task]` or `/skip-ag [task]`; bare command = `pending` (wait for a task, no closing Reply). Quoted/fenced examples, mentions and `skip-ag: on` do not count.
+- **Entry:** `scripts/fast-lane.js:parse_skip_ag`; consumers `agf.js:insert_start_message`/`start_result`, `resume-intake.js:collect_intake` (`skip_ag`), `stop-hook.js` (UserPromptSubmit route notice), `round-linter.js:lint_round`.
+- **Linter effect:** `workflow_check` skips `large_work_route`, `queue_contract`, `security_disposition`, `acceptance_disposition`, `pipeline_artifacts`, `quality_gate`; `route_decision` fails on `selected_advisors`/`full_pipeline` and otherwise calls `lint_route_decision(..., { skip_pipeline: true })`; `skip_ag_task` fails if a pending skip-ag round has a Reply. `executor_decision` and review checks still run.
+- **Policy:** `references/skip-ag.md`; mentioned in `SKILL.md`, `references/ag.md`, `closeout.md`, `delegation.md`, `fast-lane.md`.
+- **Tests:** `scripts/fast-lane.test.js` (skip-ag cases), `scripts/terminal.test.js` (PTY, both hosts), `scripts/alignment.test.js` (documentation presence).

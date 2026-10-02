@@ -1,0 +1,63 @@
+{
+  "changed_files": [
+    ".claude-plugin/plugin.json",
+    "CHANGELOG.md",
+    "README.md",
+    "README.zh-tw.md",
+    "docs/agent/FEATURES.md",
+    "docs/agent/FLOWS.md",
+    "skills/agentflow/SKILL.md",
+    "skills/agentflow/docs/AG_GUIDE.md",
+    "skills/agentflow/docs/AG_GUIDE.zh-tw.md",
+    "skills/agentflow/docs/agent-brief.md",
+    "skills/agentflow/references/streams.md",
+    "skills/agentflow/scripts/ag-settings.js",
+    "skills/agentflow/scripts/agf.js",
+    "skills/agentflow/scripts/notebook-owner.js",
+    "skills/agentflow/scripts/resume-intake.js",
+    "skills/agentflow/scripts/stop-hook.js",
+    "skills/agentflow/scripts/worktree-local-journey.js",
+    "skills/agentflow/scripts/worktree-local.js",
+    "skills/agentflow/scripts/worktree-local.test.js"
+  ],
+  "changed_lines": 558,
+  "behavior_change": true,
+  "trust_boundary": true,
+  "broad_change": true,
+  "consequential_change": true,
+  "original_ask_path": ".agentflow/devlog.md",
+  "normal_journey_path": ".agentflow/artifacts/A-001-worktree-local-notebook/journey.md",
+  "workspace_layout_change": true,
+  "workspace_instruction_inventory": [
+    {
+      "path": "skills/agentflow/SKILL.md",
+      "status": "changed",
+      "reason": "Documents the approved ignored worktree-local notebook exception."
+    },
+    {
+      "path": "skills/agentflow/references/streams.md",
+      "status": "changed",
+      "reason": "Documents the approved ignored worktree-local notebook exception."
+    },
+    {
+      "path": "skills/agentflow/references/ag.md",
+      "status": "checked-no-change",
+      "reason": "Stream lifecycle/pipeline/looper semantics remain unchanged; active notebook routing is enforced by shared guards."
+    },
+    {
+      "path": "skills/agentflow/references/looper.md",
+      "status": "checked-no-change",
+      "reason": "Stream lifecycle/pipeline/looper semantics remain unchanged; active notebook routing is enforced by shared guards."
+    },
+    {
+      "path": "skills/agentflow/docs/AG_GUIDE.md",
+      "status": "changed",
+      "reason": "Documents the approved ignored worktree-local notebook exception."
+    },
+    {
+      "path": "skills/agentflow/docs/AG_GUIDE.zh-tw.md",
+      "status": "changed",
+      "reason": "Documents the approved ignored worktree-local notebook exception."
+    }
+  ]
+}

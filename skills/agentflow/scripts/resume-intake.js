@@ -202,26 +202,28 @@ const bootstrap_paths_match = ({ repo_root, changed, bootstrap_provenance }) => 
 
 const stream_decision = ({ repo_root, branch, status, changed, expected_owner, expected_unborn, bootstrap_provenance, interrupted_start = false }) => {
   const reasons = []
+  const local = require('./notebook-owner').worktree_local_notebook(repo_root)
+  const local_evidence = local ? ['worktree-local notebook in a linked worktree'] : []
   const default_ref = default_branch(repo_root)
-	if (default_ref !== null && branch !== default_ref) reasons.push(`branch ${branch} is not the default branch ${default_ref}`)
-	if (default_ref === null && !['main', 'master'].includes(branch)) reasons.push(`branch ${branch} has no proven default branch`)
+	if (!local && default_ref !== null && branch !== default_ref) reasons.push(`branch ${branch} is not the default branch ${default_ref}`)
+	if (!local && default_ref === null && !['main', 'master'].includes(branch)) reasons.push(`branch ${branch} has no proven default branch`)
   if (has_active_stream(status)) reasons.push('STATUS contains an active stream')
   if (interrupted_start && changed.length > 0) reasons.push('startup did not return a completed transaction result')
 
   if (reasons.length === 0 && expected_owner) {
-    return { reason: 'owner_input_only', required_next_rulebook: null, evidence: ['the final empty Ask changed into the current owner message only'] }
+    return { reason: 'owner_input_only', required_next_rulebook: null, evidence: [...local_evidence, 'the final empty Ask changed into the current owner message only'] }
   }
   if (reasons.length === 0 && bootstrap_paths_match({ repo_root, changed, bootstrap_provenance })) {
-    return { reason: 'bootstrap_files_only', required_next_rulebook: null, evidence: ['every changed path matches the current startup transaction identities'] }
+    return { reason: 'bootstrap_files_only', required_next_rulebook: null, evidence: [...local_evidence, 'every changed path matches the current startup transaction identities'] }
   }
   if (reasons.length === 0 && expected_unborn) {
-    return { reason: 'owner_input_only', required_next_rulebook: null, evidence: ['the exact canonical unborn bootstrap contains one unresolved first Ask'] }
+    return { reason: 'owner_input_only', required_next_rulebook: null, evidence: [...local_evidence, 'the exact canonical unborn bootstrap contains one unresolved first Ask'] }
   }
   if (changed.length === 0 && reasons.length === 0) {
-    return { reason: 'none', required_next_rulebook: null, evidence: [] }
+    return { reason: 'none', required_next_rulebook: null, evidence: local_evidence }
   }
   if (reasons.length === 0 && changed.length > 0) reasons.push('changed paths are not proven to be current owner input or current startup files')
-  return { reason: 'foreign_or_parallel_work', required_next_rulebook: 'references/streams.md', evidence: reasons }
+  return { reason: 'foreign_or_parallel_work', required_next_rulebook: 'references/streams.md', evidence: [...local_evidence, ...reasons] }
 }
 
 const collect_intake = ({ repo_root = process.cwd(), notebook_path, active_host = 'codex', host_family, bootstrap_provenance, interrupted_start = false } = {}) => {

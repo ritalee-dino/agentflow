@@ -756,7 +756,7 @@ const hook_result_for = (host, result) => result || (['codex', 'claude'].include
 	? { status: 'available', host }
 	: { status: 'not_available', host, reason: 'no_host_hook_integration', instructions: manual_hook_instructions(host) })
 
-const start_result = ({ repo, host, host_family, notebook, notebook_text, intake, setup_result, message_result, provenance, git_identity, hook_result, config_audit }) => ({
+const start_result = ({ repo, host, host_family, notebook, notebook_text, intake, setup_result, message_result, provenance, git_identity, hook_result, config_audit, worktree_local }) => ({
 	repository: repo,
 	notebook,
 	active_host: host,
@@ -765,6 +765,7 @@ const start_result = ({ repo, host, host_family, notebook, notebook_text, intake
 	next_run_id: next_run_id(notebook_text, intake.current_ask),
 	configuration: intake.configuration,
 	...(config_audit ? { config_audit } : {}),
+	...(worktree_local ? { worktree_local } : {}),
 	setup_created: setup_result.created,
 	setup_created_files: setup_result.created_files,
 	hooks_restart_required: setup_result.changed_files.includes(host === 'codex' ? '.codex/hooks.json' : '.claude/settings.json'),
@@ -795,6 +796,7 @@ const start_public_result = result => ({
 	local_timestamp: format_local_timestamp(),
 	configuration: result.configuration,
 	...(result.config_audit ? { config_audit: result.config_audit } : {}),
+	...(result.worktree_local ? { worktree_local: result.worktree_local } : {}),
 	git: result.git,
 	next_run_id: result.next_run_id,
 	setup_created: result.setup_created,
@@ -820,6 +822,7 @@ const emit_start_result = (result, args, repo, log) => {
 			...(result.host_family ? { host_family: result.host_family } : {}),
 			configuration: result.configuration,
 			...(result.config_audit ? { config_audit: result.config_audit } : {}),
+			...(result.worktree_local ? { worktree_local: result.worktree_local } : {}),
 			git: result.git,
 			setup_created: result.setup_created,
 			setup_created_files: result.setup_created_files,
@@ -880,9 +883,20 @@ const start_main = (argv, cwd, log, _ask, _width = 80) => {
 		return audit.added.length || audit.invalid.length ? { added: audit.added, invalid: audit.invalid } : null
 	}
 	let config_audit = null
+	let local_request = null
+	let local_notebook = null
+	let bootstrap_before = null
 	try {
 		const linked_stream = top.ok && notebook_owner.linked_worktree(repo)
-		config_audit = linked_stream || lock.existing ? null : audit_start_file(config_file)
+		if (linked_stream && !lock.existing) {
+			local_request = require('./worktree-local').prepare_request({ root: repo, message, branch: git_identity.branch, host: args.host, host_family: args.host_family })
+			if (local_request) {
+				bootstrap_before = new Map(start_snapshot_paths(repo, args.host, local_request.notebook).map(relative => [relative, start_file_identity(path.join(repo, relative))]))
+				require('./worktree-local').initialize({ root: repo, request: local_request, host: args.host })
+			}
+		}
+		local_notebook = linked_stream ? notebook_owner.worktree_local_notebook(repo, { active_host: args.host }) : null
+		config_audit = (linked_stream && !local_notebook) || lock.existing ? null : audit_start_file(config_file)
 		if (fs.existsSync(config_file)) {
 			let existing_config
 			try { existing_config = ag_settings.load_config(config_file, { repo_root: repo, active_host: args.host, persist_migration: false, ...(args.host_family ? { host_family: args.host_family } : {}) }) }
@@ -892,13 +906,14 @@ const start_main = (argv, cwd, log, _ask, _width = 80) => {
 			}
 			configured_target = existing_config.switches['target-doc'] || configured_target
 		}
-		if (linked_stream) {
+		if (linked_stream && !local_notebook) {
 			configured_target = stream_doc(repo, git_identity.branch)
 			if (!configured_target) throw new Error('stream notebook is missing for this worktree; restore its canonical notebook before intake')
 			config_file = ag_settings.resolve_config_path(repo, configured_target)
 			if (!fs.existsSync(config_file)) throw new Error('stream configuration is missing; restore its notebook/configuration pair before intake')
 			if (!lock.existing) config_audit = audit_start_file(config_file)
 		}
+		if (local_notebook) configured_target = local_notebook
 		if (fs.existsSync(config_file) && !fs.existsSync(path.join(repo, configured_target))) throw new Error(`configured notebook ${configured_target} is missing; restore it or repair the pair explicitly`)
 	} catch (error) {
 		if (!lock.existing) release_start_lock(lock)
@@ -917,6 +932,7 @@ const start_main = (argv, cwd, log, _ask, _width = 80) => {
 			provenance: [],
 			git_identity,
 			host_family: args.host_family,
+			worktree_local: local_notebook ? { enabled: true, created_config: false } : null,
 		})
 		return emit_start_result(result, args, repo, log)
 	}
@@ -927,13 +943,14 @@ const start_main = (argv, cwd, log, _ask, _width = 80) => {
 		input_lock = notebook_writer.acquire_close_round_lock(`${guarded_file}.close-round.lock`)
 		const ownership = notebook_owner.guard({ root: repo, notebook: configured_target, host: args.host, session: args.session, allow_missing: true, resume_unclaimed: true })
 		const before_paths = start_snapshot_paths(repo, args.host, configured_target)
-		const before = new Map(before_paths.map(relative => [relative, start_file_identity(path.join(repo, relative))]))
+		const before = bootstrap_before || new Map(before_paths.map(relative => [relative, start_file_identity(path.join(repo, relative))]))
 		const initialized = fs.existsSync(config_file)
 			? ag_settings.ensure_configuration({
 				repo_root: repo,
 				notebook_path: configured_target,
 				config_path: config_file,
 				explicit_host: args.host,
+				...(local_notebook ? { persist_migration: false } : {}),
 				...(args.host_family ? { host_family: args.host_family } : {}),
 			})
 			: ag_settings.initialize_project({ repo_root: repo, explicit_host: args.host, ...(args.host_family ? { host_family: args.host_family } : {}) })
@@ -942,8 +959,10 @@ const start_main = (argv, cwd, log, _ask, _width = 80) => {
 		const paths = start_snapshot_paths(repo, args.host, notebook)
 		const notebook_file = path.join(repo, notebook)
 		if (!fs.existsSync(notebook_file)) throw new Error(`configured notebook ${notebook} is missing; restore it or repair the pair explicitly`)
-		update_ignore_file(repo)
-		const hook_result = install_hook.install({ cwd: repo, hosts: [args.host], quiet: true, say: () => {} })
+		if (!local_notebook) update_ignore_file(repo)
+		const hook_result = local_notebook
+			? { status: 'not_available', host: args.host, reason: 'worktree_local_bootstrap_preserves_git_files', instructions: manual_hook_instructions(args.host) }
+			: install_hook.install({ cwd: repo, hosts: [args.host], quiet: true, say: () => {} })
 		const setup_provenance = start_provenance({ repo, paths, before })
 		let message_result
 		try {
@@ -972,7 +991,7 @@ const start_main = (argv, cwd, log, _ask, _width = 80) => {
 		release_start_lock(lock)
 		lock = null
 		const intake = resume_intake.collect_intake({ repo_root: repo, notebook_path: notebook, active_host: args.host, ...(args.host_family ? { host_family: args.host_family } : {}), bootstrap_provenance: provenance })
-		return emit_start_result(start_result({ repo, host: args.host, host_family: args.host_family, notebook, notebook_text: message_result.text, intake, setup_result, message_result, provenance, git_identity, config_audit, hook_result: Array.isArray(hook_result) ? hook_result[0] : hook_result }), args, repo, log)
+		return emit_start_result(start_result({ repo, host: args.host, host_family: args.host_family, notebook, notebook_text: message_result.text, intake, setup_result, message_result, provenance, git_identity, config_audit, worktree_local: local_notebook ? { enabled: true, created_config: Boolean(local_request?.created_config) } : null, hook_result: Array.isArray(hook_result) ? hook_result[0] : hook_result }), args, repo, log)
 	} finally {
 		if (input_lock !== null) notebook_writer.release_close_round_lock(input_lock)
 		if (lock !== null) release_start_lock(lock)

@@ -69,6 +69,35 @@ const linked_worktree = root => {
   catch { return false; }
 };
 
+const worktree_local_paths = (root, config) => {
+  const settings = require('./ag-settings');
+  const notebook = config.switches['target-doc'] || settings.workspace_paths(config).notebook;
+  const workspace = config.switches['workspace-dir'] || '.agentflow';
+  safe_path(root, workspace);
+  safe_path(root, notebook);
+  const features = path.posix.join(workspace, 'features');
+  if (path_key(notebook) === path_key(features) || path_key(notebook).startsWith(`${path_key(features)}/`)) fail('worktree-local-notebook cannot use a notebook under the workspace features directory');
+  for (const relative of ['ag.json', notebook]) {
+    safe_path(root, relative);
+    const git = args => require('node:child_process').spawnSync('git', args, { cwd: root, encoding: 'utf8', timeout: 10000, maxBuffer: 1024 * 1024 });
+    if (git(['ls-files', '--error-unmatch', '--', relative]).status !== 1 || git(['check-ignore', '-q', '--', relative]).status !== 0) {
+      fail(`worktree-local-notebook requires ${relative} to be untracked and ignored by Git (I-039); add it to .git/info/exclude or .gitignore, then retry`);
+    }
+  }
+  return notebook;
+};
+
+const worktree_local_notebook = (root, options = {}) => {
+  if (!linked_worktree(root)) return null;
+  const file = path.join(root, 'ag.json');
+  if (!fs.existsSync(file)) return null;
+  safe_path(root, 'ag.json');
+  const raw = JSON.parse(writer().read_regular_file(file, 'configuration').text);
+  if (raw?.switches?.['worktree-local-notebook'] !== 'on') return null;
+  const config = require('./ag-settings').load_config(file, { repo_root: root, active_host: options.active_host || require('./agf').host_from_root_status(root) || 'codex', persist_migration: false });
+  return worktree_local_paths(root, config);
+};
+
 const identity = ({ host, session, env = process.env } = {}) => {
   host = host || require('./ag-settings').detect_host({ env });
   if (!/^[a-z0-9][a-z0-9_-]{0,127}$/u.test(host)) fail('host must be a safe lowercase ID');
@@ -201,8 +230,9 @@ const guard = ({ root = process.cwd(), notebook, text, host, session, ask, works
   const info = location({ root, notebook, workspace });
   const stream = linked_worktree(info.root);
   if (stream) {
+    const local = worktree_local_notebook(info.root, { active_host: who.host });
     const branch = require('node:child_process').spawnSync('git', ['branch', '--show-current'], { cwd: info.root, encoding: 'utf8' });
-    const expected = branch.status === 0 ? require('./agf').stream_doc(info.root, branch.stdout.trim()) : null;
+    const expected = local || (branch.status === 0 ? require('./agf').stream_doc(info.root, branch.stdout.trim()) : null);
     if (!expected || path_key(canonical_relative(info.root, expected)) !== path_key(info.notebook)) fail('a stream worktree may write only its canonical stream notebook; the checked-out main notebook belongs to the main session');
   }
   if (text === undefined) {
@@ -329,4 +359,4 @@ const cli = (argv, cwd) => {
   try { return { json: transfer(options) }; } finally { writer().release_close_round_lock(lock); }
 };
 
-module.exports = { identity, location, read, guard, verify, release, relocate, inspect, transfer, cli, safe_path, linked_worktree };
+module.exports = { identity, location, read, guard, verify, release, relocate, inspect, transfer, cli, safe_path, linked_worktree, worktree_local_paths, worktree_local_notebook };

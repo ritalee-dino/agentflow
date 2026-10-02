@@ -192,6 +192,8 @@ A **feature stream** gives one feature its own folder and notebook. In a Git pro
 
 5. From the main project, use `cleanup:login-page` to remove the finished temporary branch and folder while keeping its notebook and artifacts. Cleanup may merge undelivered work first. `agf ditch login-page` is the separate, confirmed operation for abandoning unmerged work.
 
+For a worktree you created manually with `git worktree add`, include `worktree-local-notebook: on` (or `true`) in its first `godev` message. Agentflow initializes its own root `ag.json` and local notebook, then keeps using that notebook. Both files must be untracked and Git-ignored, for example through `.git/info/exclude`; an existing canonical stream notebook refuses activation. This does not change the `new-feature:` lifecycle.
+
 Ordinary notebook work also works without Git. A separate notebook for non-code conversation can be created without a branch, but `new-feature:` needs Git to create its feature workspace. A stream is not a security sandbox.
 
 <details>

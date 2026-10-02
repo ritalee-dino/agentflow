@@ -62,10 +62,11 @@ const main = () => {
   const project_name = node_path.basename(project_dir);
   const in_named_worktree = node_path.basename(node_path.dirname(project_dir)) === '.worktrees' && /^[a-z0-9][a-z0-9-]*$/u.test(project_name);
   if (require('./notebook-owner').linked_worktree(project_dir)) {
+    const local = require('./notebook-owner').worktree_local_notebook(project_dir, { active_host });
     const branch = require('node:child_process').spawnSync('git', ['branch', '--show-current'], { cwd: project_dir, encoding: 'utf8' });
-    notebook_path = branch.status === 0 ? require('./agf').stream_doc(project_dir, branch.stdout.trim()) : '';
+    notebook_path = local || (branch.status === 0 ? require('./agf').stream_doc(project_dir, branch.stdout.trim()) : '');
     if (!notebook_path) throw Error('stream notebook is missing for this worktree; restore its canonical notebook before capture');
-    config_path = require('./ag-settings').resolve_config_path(project_dir, notebook_path);
+    config_path = local ? node_path.join(project_dir, 'ag.json') : require('./ag-settings').resolve_config_path(project_dir, notebook_path);
     if (!node_fs.existsSync(config_path)) throw Error('stream configuration is missing; restore its notebook/configuration pair before capture');
   } else if (in_named_worktree) {
     const stream_notebook = node_path.posix.join('.agentflow', 'features', project_name, `${project_name}.devlog.md`);

@@ -101,6 +101,10 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 - **Policy:** `references/streams.md`.
 - **Tests:** `scripts/agf.test.js`, `scripts/streams-off.test.js`, `scripts/devlog-guard.test.js`, `scripts/default-branch.test.js`, `scripts/branch-safety-terminal.test.js`.
 
+The optional `worktree-local-notebook` switch (v8.5.0, absent = off) supports manually created linked worktrees without an Agentflow stream notebook. `scripts/worktree-local.js:parse_worktree_local_request` accepts on/true outside fenced code in an initial `godev` message. `prepare_request` rejects existing canonical stream notebooks; `notebook-owner.js:worktree_local_paths` requires root `ag.json` and the configured notebook to be untracked, Git-ignored, safe paths outside `<workspace>/features/`. `worktree_local_notebook` is shared by startup, hook routing, notebook guards and active configuration resolution. Startup avoids Git-visible bootstrap changes; capture, progress, compaction and close retain the same local notebook. `resume-intake.js:stream_decision` suppresses only the non-default-branch signal; active streams and unknown changes still trigger normal handling. Main checkouts and plain folders ignore the request. Tests: `scripts/worktree-local.test.js`; PTY: `scripts/worktree-local-journey.js`.
+
+---
+
 ## 12. Worker delegation
 
 - **Purpose:** choose and run an executor (external CLI, native host subagent, or host itself) under `allowed-worker` and `review-policy`.

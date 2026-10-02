@@ -1,6 +1,12 @@
 # Changelog
 
-Notable Agentflow changes, with the newest version first. Release metadata uses major.minor.patch; the current release is 8.4.7. Earlier dates identify recorded source milestones, not independently verified public publication dates.
+Notable Agentflow changes, with the newest version first. Release metadata uses major.minor.patch; the current release is 8.5.0. Earlier dates identify recorded source milestones, not independently verified public publication dates.
+
+## [8.5.0]
+
+- Add optional `worktree-local-notebook` for manually created linked worktrees. A first `godev worktree-local-notebook: on` message (also accepting `true`) initializes the local root configuration and notebook, and subsequent startup, capture, progress, compaction and close use the same notebook.
+
+- Require the local configuration and notebook to be untracked and Git-ignored, refuse existing canonical stream notebooks, and avoid Git-visible bootstrap changes. Default routing, stream lifecycle and `agf init` remain unchanged.
 
 ## [8.4.7]
 

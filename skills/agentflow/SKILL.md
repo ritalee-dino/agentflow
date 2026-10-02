@@ -2,10 +2,10 @@
 name: "agentflow"
 description: "File logs, Git evidence and optional development. Triggered by godev/devlog/ag/agentflow/fast-lane/skip-ag."
 metadata:
-  version: "8.4.7"
+  version: "8.5.0"
 ---
 
-# Agentflow v8.4.7
+# Agentflow v8.5.0
 
 Agentflow keeps owner conversation and live recovery in a configured notebook; advanced rules load only on demand.
 
@@ -168,7 +168,9 @@ Read `references/progress.md` before decomposing work, recording a material resu
 
 ## Settings
 
-- Controls: `workspace-dir`, `allowed-worker`, `review-policy`, `cli-provider`, `auto-reply`, `away-gates`, `ask-names`, `streams`, `lang`, `target-doc`, `allow-ag`, `git-timeout-ms`, `log-verbosity`, `inline-reply`, `notebook-ownership`, `large-work-minutes`, `completion-cleanup`, and `completion-cleanup-interval-days`. `allowed-worker` is a nonempty JSON permission array of unique `external`, `internal`, and `host` values; its order has no execution meaning. For each task, the host chooses an eligible permitted kind and records a brief reason. `review-policy` is `prefer-independent` or `require-independent`; it governs review fallback only. Legal stream values are `streams: ask|always|off`. With streams, `off` reports the signal but neither asks to open a stream nor opens one. Explicit `new-feature:` still opens its requested stream. Validate changes and write adjacent `ag.json` atomically. New projects default to all three worker kinds and `prefer-independent`; v7 migration preserves the conservative JSON value `["external", "host"]` and `require-independent` posture until explicitly opted in. Never rebuild established settings from STATUS.
+- Controls: `workspace-dir`, `allowed-worker`, `review-policy`, `cli-provider`, `auto-reply`, `away-gates`, `ask-names`, `streams`, `lang`, `target-doc`, `allow-ag`, `git-timeout-ms`, `log-verbosity`, `inline-reply`, `notebook-ownership`, `worktree-local-notebook`, `large-work-minutes`, `completion-cleanup`, and `completion-cleanup-interval-days`. `allowed-worker` is a nonempty JSON permission array of unique `external`, `internal`, and `host` values; its order has no execution meaning. For each task, the host chooses an eligible permitted kind and records a brief reason. `review-policy` is `prefer-independent` or `require-independent`; it governs review fallback only. Legal stream values are `streams: ask|always|off`. With streams, `off` reports the signal but neither asks to open a stream nor opens one. Explicit `new-feature:` still opens its requested stream. Validate changes and write adjacent `ag.json` atomically. New projects default to all three worker kinds and `prefer-independent`; v7 migration preserves the conservative JSON value `["external", "host"]` and `require-independent` posture until explicitly opted in. Never rebuild established settings from STATUS.
+
+- In a manually created linked worktree, include `worktree-local-notebook: on` (or `true`) in the first `godev` message to initialize its local notebook. Startup applies the setting; do not change it again. Both root `ag.json` and the notebook must be untracked and Git-ignored; an existing canonical stream notebook refuses this request. The optional switch defaults to `off`.
 
 - Change a setting with `<key>: <value>`, not an internal `$variable` name. Use hyphens between words in setting names.
 

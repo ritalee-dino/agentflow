@@ -18,7 +18,11 @@ agf.js:main → COMMANDS.start → start_main
      added keys → atomic rewrite (switches sorted); invalid values → reported only
   load existing ag.json (ag-settings.js:load_config, safe fallbacks) → target-doc
      unsafe invalid value → error + template suggestions, stop
-  linked worktree? → stream_doc + stream ag.json (audited the same way)
+  linked worktree? → worktree-local.js:prepare_request for an explicit on/true request
+     canonical stream notebook present → reject activation
+     validate root config/notebook untracked + Git-ignored before writes
+     notebook-owner.js:worktree_local_notebook → enabled local target + root ag.json
+     otherwise → stream_doc + stream ag.json (audited the same way)
   lock already present → resume-intake.js:collect_intake(interrupted_start) → emit result, no writes
   notebook-write.js:acquire_close_round_lock
   notebook-owner.js:guard(allow_missing, resume_unclaimed)   (ownership off: current-Ask check only, no record)
@@ -33,16 +37,18 @@ agf.js:main → COMMANDS.start → start_main
   start_result → JSON (repository, notebook, git, next_run_id, setup, message, stream_decision, hooks, optional fast_lane / skip_ag / config_audit {added, invalid})
 ```
 
+Worktree-local startup uses the root configuration and configured local notebook. It does not modify `.gitignore` or install Git-visible hook files; the ordinary `agf init` and stream lifecycle remain unchanged.
+
 Side effects: may create `ag.json` (or add missing template properties to an existing one), notebook, `.gitignore` entries, `.claude/settings.json` or `.codex/hooks.json`, ownership record. No commit.
 Afterwards *(policy)*: answer-recovery gate, load `references/writing.md`, `closeout.md`, `progress.md`, choose route (`direct|selected_advisors|full_pipeline|blocked`).
-Tests: `start-journey.test.js`, `agf.test.js`, `resume-intake.test.js`, `git-optional.test.js`.
+Tests: `start-journey.test.js`, `agf.test.js`, `resume-intake.test.js`, `git-optional.test.js`, `worktree-local.test.js`; reusable PTY: `worktree-local-journey.js`.
 
 ## 2. Per-message capture (UserPromptSubmit hook)
 
 ```text
 host hook → stop-hook.js --host <codex|claude> (stdin JSON: hook_event_name, prompt, cwd, session_id, turn_id)
   resolve project dir (CLAUDE_PROJECT_DIR for claude, else input.cwd)
-  resolve notebook: linked worktree → stream notebook; else ag.json target-doc
+  resolve notebook: linked worktree → validated worktree-local notebook or canonical stream notebook; else ag.json target-doc
   no notebook → exit 0
   last round already has Reply → emit notice "not saved", exit 0
   notebook-write.js:append_input(host, session, message_id)

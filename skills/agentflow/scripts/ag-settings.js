@@ -29,8 +29,8 @@ const pipeline_role_defaults = Object.freeze({
 	learn: 'basic',
 	threeways: 'better',
 })
-const switch_names = Object.freeze(['target-doc', 'workspace-dir', 'cli-provider', 'auto-reply', 'away-gates', 'log-verbosity', 'inline-reply', 'notebook-ownership', 'lang', 'streams', 'ask-names', 'allow-ag', 'large-work-minutes', 'git-timeout-ms', 'allowed-worker', 'review-policy', 'completion-cleanup', 'completion-cleanup-interval-days'])
-const optional_switch_names = Object.freeze(['completion-cleanup', 'completion-cleanup-interval-days', 'log-verbosity', 'inline-reply', 'notebook-ownership', 'git-timeout-ms', 'away-gates'])
+const switch_names = Object.freeze(['target-doc', 'workspace-dir', 'cli-provider', 'auto-reply', 'away-gates', 'log-verbosity', 'inline-reply', 'worktree-local-notebook', 'notebook-ownership', 'lang', 'streams', 'ask-names', 'allow-ag', 'large-work-minutes', 'git-timeout-ms', 'allowed-worker', 'review-policy', 'completion-cleanup', 'completion-cleanup-interval-days'])
+const optional_switch_names = Object.freeze(['completion-cleanup', 'completion-cleanup-interval-days', 'log-verbosity', 'inline-reply', 'worktree-local-notebook', 'notebook-ownership', 'git-timeout-ms', 'away-gates'])
 const legacy_switch_names = Object.freeze(['metrics'])
 const completion_cleanup_defaults = Object.freeze({ 'completion-cleanup': 'off', 'completion-cleanup-interval-days': 7 })
 const notebook_control_defaults = Object.freeze({ 'log-verbosity': 'all', 'inline-reply': 'off', 'notebook-ownership': 'off' })
@@ -670,6 +670,7 @@ const validate_switches = (config, options, expected_switches, provider_values, 
 		'away-gates': ['on', 'off'],
 		'log-verbosity': ['off', 'wip', 'all'],
 		'inline-reply': ['on', 'off'],
+		'worktree-local-notebook': ['on', 'off'],
 		'notebook-ownership': ['on', 'off'],
 		streams: ['ask', 'always', 'off'],
 		'ask-names': ['on', 'off'],
@@ -804,6 +805,8 @@ const resolve_config_path = (repo_root, notebook_path = 'devlog.md') => {
 // The project-root ag.json is the bootstrap authority for a configured root
 // notebook. Stream notebooks retain their adjacent configuration.
 const active_config_path = (repo_root, notebook_path = 'devlog.md') => {
+	const local = require('./notebook-owner').worktree_local_notebook(repo_root)
+	if (local && local === relative_notebook_path(repo_root, notebook_path)) return node_path.join(node_path.resolve(repo_root), 'ag.json')
 	const adjacent = resolve_config_path(repo_root, notebook_path)
 	if (node_fs.existsSync(adjacent)) return adjacent
 	const root_config = node_path.join(node_path.resolve(repo_root), 'ag.json')
@@ -1039,6 +1042,7 @@ const canonical_config = config => ({
 		'cli-provider': config.switches['cli-provider'],
 		'auto-reply': config.switches['auto-reply'],
 		...(has_own(config.switches, 'away-gates') ? { 'away-gates': config.switches['away-gates'] } : {}),
+		...(has_own(config.switches, 'worktree-local-notebook') ? { 'worktree-local-notebook': config.switches['worktree-local-notebook'] } : {}),
 		...Object.fromEntries(Object.keys(notebook_control_defaults).filter(key => has_own(config.switches, key)).map(key => [key, config.switches[key]])),
 		lang: config.switches.lang,
 		streams: config.switches.streams,
@@ -2036,6 +2040,7 @@ const format_settings_display = (config, options = {}) => {
 		'- away-gates: on or off (default off); supplies Design Go and Result Go only after required evidence passes; use away-gates: <value>',
 		'- log-verbosity: off, wip, or all (default all); controls RUN/WIP records, never Reply; use log-verbosity: <value>',
 		'- inline-reply: on or off (default off); also display the saved Reply; use inline-reply: <value>',
+		'- worktree-local-notebook: on or off (default off); use an ignored, untracked local notebook in a linked worktree; enable with godev worktree-local-notebook: on',
 		'- notebook-ownership: on or off (default off); on protects each Ask from other sessions; off retains file locks but allows mixed session work; use notebook-ownership: <value>',
 		'- lang: non-empty language tag or existing language name; use lang: <value>',
 		'- streams: ask, always, or off; use streams: <value>',

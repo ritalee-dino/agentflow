@@ -173,6 +173,8 @@ away: gates
 
 5. 回到主專案後，可用 `cleanup:login-page` 移除已完成的暫存分支和資料夾，筆記與工作文件會留下。尚未交付的工作可能會先被合併。若確定要放棄尚未合併的工作，才使用需要確認的 `agf ditch login-page`。
 
+若 worktree 是自行用 `git worktree add` 建立，在第一則 `godev` 訊息加入 `worktree-local-notebook: on`（也接受 `true`）。Agentflow 會建立這個 worktree 自己的根目錄 `ag.json` 與本地筆記，之後持續使用同一本筆記。這兩個檔案必須未被 Git 追蹤且已被 ignore，例如透過 `.git/info/exclude` 排除；若已有 canonical stream notebook，啟用會被拒絕。這不會改變 `new-feature:` 的工作區流程。
+
 沒有 Git 也能做一般筆記工作。非程式的獨立對話筆記可以不建立分支，但 `new-feature:` 建立功能工作區時需要 Git。工作區也不等於安全沙箱。
 
 <details>

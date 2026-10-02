@@ -13,13 +13,16 @@ agf.js:main → COMMANDS.start → start_main
   parse_start_args; notebook-owner.js:identity (reject conflicting identity)
   git rev-parse --show-toplevel  → repo root (or plain folder)
   read_start_message (stdin)
-  load existing ag.json (ag-settings.js:load_config) → target-doc
-  linked worktree? → stream_doc + stream ag.json
-  acquire_start_lock
-    └─ lock already present → resume-intake.js:collect_intake(interrupted_start) → emit result, no writes
+  acquire_start_lock   (since 8.4.7 taken before config handling; released if config handling throws)
+  no existing lock → audit_start_file(ag.json) → ag-settings.js:audit_template
+     added keys → atomic rewrite (switches sorted); invalid values → reported only
+  load existing ag.json (ag-settings.js:load_config, safe fallbacks) → target-doc
+     unsafe invalid value → error + template suggestions, stop
+  linked worktree? → stream_doc + stream ag.json (audited the same way)
+  lock already present → resume-intake.js:collect_intake(interrupted_start) → emit result, no writes
   notebook-write.js:acquire_close_round_lock
   notebook-owner.js:guard(allow_missing, resume_unclaimed)   (ownership off: current-Ask check only, no record)
-  ag-settings.js:ensure_configuration | initialize_project   (creates ag.json + notebook)
+  ag-settings.js:ensure_configuration | initialize_project   (creates ag.json + notebook; audit runs here if not yet done)
   update_ignore_file (.gitignore)
   install-hook.js:install (host hooks, quiet)
   notebook-compact.js:compact_locked (auto-compaction)
@@ -27,10 +30,10 @@ agf.js:main → COMMANDS.start → start_main
   notebook-write.js:capture_input_scope, atomic_replace
   release locks
   resume-intake.js:collect_intake → STATUS, final Ask, changed paths, stream_decision
-  start_result → JSON (repository, notebook, git, next_run_id, setup, message, stream_decision, hooks, optional fast_lane / skip_ag)
+  start_result → JSON (repository, notebook, git, next_run_id, setup, message, stream_decision, hooks, optional fast_lane / skip_ag / config_audit {added, invalid})
 ```
 
-Side effects: may create `ag.json`, notebook, `.gitignore` entries, `.claude/settings.json` or `.codex/hooks.json`, ownership record. No commit.
+Side effects: may create `ag.json` (or add missing template properties to an existing one), notebook, `.gitignore` entries, `.claude/settings.json` or `.codex/hooks.json`, ownership record. No commit.
 Afterwards *(policy)*: answer-recovery gate, load `references/writing.md`, `closeout.md`, `progress.md`, choose route (`direct|selected_advisors|full_pipeline|blocked`).
 Tests: `start-journey.test.js`, `agf.test.js`, `resume-intake.test.js`, `git-optional.test.js`.
 
@@ -90,6 +93,7 @@ host Stop hook → stop-hook.js:main
   --host must be codex|claude (I-043)
   resolve notebook (same as capture); missing → exit 0
   only empty bootstrap Ask → exit 0
+  closed-round.js:verified_closed_round (Reply + close commit + Agentflow-Close-Id + receipt + committed round text) → exit 0
   completion-context.js:collect(transcript_path, now_ms, require_status_projection)
   round-linter.js:lint_round
     ok   → completion-cleanup.js:sweep_completion_records → exit 0
@@ -98,7 +102,7 @@ host Stop hook → stop-hook.js:main
   internal error → fail open
 ```
 
-Tests: `stop-hook.test.js`, `stop-hook-recovery.test.js`.
+Tests: `stop-hook.test.js`, `stop-hook-recovery.test.js`, `closed-round.test.js`.
 
 ## 5. Delegated worker execution
 

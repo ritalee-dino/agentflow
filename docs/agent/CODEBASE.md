@@ -6,7 +6,7 @@ Agentflow is an **AI-agent skill** (prompt instructions + zero-dependency Node.j
 
 Users: a human "owner" talking to a host agent (verified: Codex CLI and Claude Code; generic hookless hosts supported manually). The scripts are invoked by the host agent, by host hooks, or by the owner through the `agf` / `agf-looper` shell shortcuts.
 
-This repository is the **public release mirror** (current version 8.4.4). Commits are titled `release: agentflow @ <private-sha>`; development happens in a separate private checkout (inferred from commit titles and `SKILL.md` release guidance).
+This repository is the **public release mirror** (current version 8.4.7). Commits are titled `release: agentflow @ <private-sha>`; development happens in a separate private checkout (inferred from commit titles and `SKILL.md` release guidance).
 
 ## Major use cases
 
@@ -40,7 +40,7 @@ skills/agentflow/
   SKILL.md               Always-loaded model instructions (version in frontmatter + heading)
   references/            Trigger-loaded rulebooks (closeout, progress, writing, streams, ag, delegation, looper, fast-lane, skip-ag, skill-conflicts)
   references/advisors/   Pipeline advisor role prompts (requirements, codewalk, explore, spike, spec, security-scan, acceptance, learn)
-  docs/                  Owner guides (EN/zh-TW), incidents-log.md, skill-editing guide
+  docs/                  Owner guides (EN/zh-TW), agent-brief.md (orientation brief for a new assistant, linked from READMEs since 8.4.5), incidents-log.md, skill-editing guide
   scripts/               All executable logic + colocated *.test.js
   scripts/fixtures/      Test fixtures (fake external worker, notebook owner helpers, temp dirs)
 ```
@@ -80,14 +80,15 @@ Opt-in / special checks (see `skills/agentflow/scripts/README.md`):
 - `*-journey.js` scripts: real PTY/terminal journeys (some need Expect/macOS; `codex-live-journey.js` and `claude-live-journey.js` make paid model calls).
 - `looper-live-gate.js --report <path>`: mandatory final gate for any looper behavior change (real provider calls).
 
-Platform notes: Unix-only tests skip on native Windows; the looper is not supported on native Windows (per README and CHANGELOG 8.3.4). CHANGELOG 8.3.4 and 8.4.0 record two known pre-existing failing assertions in `prompt-compression.test.js`; at v8.4.4 only the 32 KiB budget assertion was observed failing (see [DECISIONS.md](DECISIONS.md) "Open / uncertain") — do not assume a fully green suite.
+Platform notes: Unix-only tests skip on native Windows; the looper is not supported on native Windows (per README and CHANGELOG 8.3.4). CHANGELOG 8.3.4 and 8.4.0 record two known pre-existing failing assertions in `prompt-compression.test.js`; at v8.4.4 and v8.4.7 only the 32 KiB budget assertion was observed failing (see [DECISIONS.md](DECISIONS.md) "Open / uncertain") — do not assume a fully green suite.
 
-Host environment leakage: running tests from inside a Claude Code or Codex session leaks runtime markers listed in `ag-settings.js:host_markers` (e.g. `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_ENTRYPOINT`, `CLAUDE_CODE_SSE_PORT`, `CODEX_THREAD_ID`). Fixtures that set the other host then fail with `AG_HOST_AMBIGUOUS` ("active host is ambiguous"). Unset those variables before running the suite. On native Windows without symlink privilege, symlink-based tests (e.g. in `completion-record.test.js`) fail with `EPERM`.
+Host environment leakage: running tests from inside a Claude Code or Codex session leaks runtime markers listed in `ag-settings.js:host_markers` (e.g. `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_ENTRYPOINT`, `CLAUDE_CODE_SSE_PORT`, `CODEX_THREAD_ID`). Fixtures that set the other host then fail with `AG_HOST_AMBIGUOUS` ("active host is ambiguous"). Unset those variables before running the suite. On native Windows without symlink privilege, symlink-based tests (e.g. in `completion-record.test.js`, `ag-settings.test.js` "target document validation ...") fail with `EPERM`.
 
 ## Configuration
 
 - `ag.json` (project root, or adjacent to a stream notebook): schema version 8. Root keys `schema-version`, `switches`, `pipeline-roles`, `external-workers`. Owned by `skills/agentflow/scripts/ag-settings.js` (`validate_config`, `load_config`, `migrate_config`, `change_configuration`, `host_template_values`).
-- Important switches: `target-doc` (notebook path, default `.agentflow/devlog.md`), `workspace-dir` (default `.agentflow`), `allowed-worker`, `review-policy`, `allow-ag`, `streams`, `lang`, `log-verbosity`, `inline-reply`, `notebook-ownership` (default `off`), `git-timeout-ms`.
+- Important switches: `target-doc` (notebook path, default `.agentflow/devlog.md`), `workspace-dir` (default `.agentflow`), `allowed-worker`, `review-policy`, `allow-ag`, `streams`, `lang`, `log-verbosity`, `inline-reply`, `notebook-ownership` (default `off`), `away-gates` (optional, default `off`, since 8.4.5), `git-timeout-ms`. New templates list switch keys alphabetically (since 8.4.7).
+- Startup template audit (since 8.4.7): `agf start` fills missing template properties into `ag.json` and reports invalid saved values with suggestions (`ag-settings.js:audit_template`); see [FEATURES.md](FEATURES.md) section 10.
 - Environment variables (read, not required): `AGF_GIT_TIMEOUT_MS`, `CODEX_THREAD_ID`/`CODEX_SESSION_ID`, `CLAUDE_CODE_SESSION_ID`/`CLAUDE_SESSION_ID`, `CLAUDE_PROJECT_DIR`, `AGENTFLOW_SESSION_ID`, `AGENTFLOW_EXTERNAL_DELEGATE`, `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `AGF_OPEN`.
 - Version must stay aligned in `SKILL.md` (frontmatter + heading), `.claude-plugin/plugin.json`, `README*.md` heading, and root `CHANGELOG.md`.
 

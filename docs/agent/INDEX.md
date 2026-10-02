@@ -1,6 +1,6 @@
 # Agent knowledge base — index
 
-Navigation layer for AI coding agents working **on** this repository (developing Agentflow itself). Source code and the skill Markdown under `skills/agentflow/` are authoritative; these notes only help you find them. Snapshot: v8.4.4, 2026-10-01 (verified against commit `4257a20`; earlier text was written against v8.4.0).
+Navigation layer for AI coding agents working **on** this repository (developing Agentflow itself). Source code and the skill Markdown under `skills/agentflow/` are authoritative; these notes only help you find them. Snapshot: v8.4.7, 2026-10-02 (verified against public commit `216c75f`; earlier text was written against v8.4.0 and v8.4.4).
 
 ## Which document to read
 

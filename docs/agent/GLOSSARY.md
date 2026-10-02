@@ -18,7 +18,7 @@ Terms as used in this repository. Primary definitions live in `skills/agentflow/
 
 **WIP** — owner-facing status checkpoint, at least every ten active minutes during long work. `append_wip`.
 
-**Reply** — the saved final answer for an Ask (`# ← Reply / A-NNN`), with `## [SUMMARY]`, `## [FINAL REPORT]`, `## Questions`. Written at closeout.
+**Reply** — the saved final answer for an Ask (`# ← Reply / A-NNN`), with `## [SUMMARY]` (one bullet per numbered `[FINAL REPORT]` item since 8.4.6), `## [FINAL REPORT]`, `## Questions`. Written at closeout.
 
 **Round** — Ask + RUN/WIP + Reply. Completed rounds are immutable history.
 
@@ -72,7 +72,11 @@ Terms as used in this repository. Primary definitions live in `skills/agentflow/
 
 **`no-ag`, `skip-review:`** — per-Ask owner waivers recognized by `completion-context.js:review_decision`.
 
-**Design Go / Result Go** — explicit owner gates for consequential work (`Design Go: <7-hex commit prefix>`).
+**Design Go / Result Go** — explicit owner gates for consequential work (`Design Go: <7-hex commit prefix>`). May be supplied after evidence passes by current-Ask `away: gates` or by the `away-gates: on` switch.
+
+**`away-gates`** — optional `on|off` switch (default `off`, since 8.4.5): project-wide form of `away: gates`. Read by `completion-context.js:collect`; enforced in `round-linter.js:lint_quality_gate`.
+
+**Config audit (`config_audit`)** — startup result field (since 8.4.7) listing template properties added to `ag.json` (`added`) and invalid saved values with template suggestions (`invalid`). `ag-settings.js:audit_template`.
 
 **Minimality check** — required statement in `design.md` justifying each part of a consequential change.
 

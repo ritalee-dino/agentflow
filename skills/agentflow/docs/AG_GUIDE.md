@@ -192,6 +192,8 @@ A **feature stream** gives one feature its own folder and notebook. In a Git pro
 
 5. From the main project, use `cleanup:login-page` to remove the finished temporary branch and folder while keeping its notebook and artifacts. Cleanup may merge undelivered work first. `agf ditch login-page` is the separate, confirmed operation for abandoning unmerged work.
 
+For a feature stream that stays local throughout, set `stream-auto-push: off` in the main project before creating it. The new stream copies that setting and can change it independently. Creation, closeout, delivery, cleanup and ditch then leave remote refs untouched; publish with manual Git push when needed.
+
 For a worktree you created manually with `git worktree add`, include `worktree-local-notebook: on` (or `true`) in its first `godev` message. Agentflow initializes its own root `ag.json` and local notebook, then keeps using that notebook. Both files must be untracked and Git-ignored, for example through `.git/info/exclude`; an existing canonical stream notebook refuses activation. This does not change the `new-feature:` lifecycle.
 
 Ordinary notebook work also works without Git. A separate notebook for non-code conversation can be created without a branch, but `new-feature:` needs Git to create its feature workspace. A stream is not a security sandbox.
@@ -231,6 +233,8 @@ Type `settings` to see the active values and available choices. To change one, s
 - **Development process:** `allow-ag: on|ask|off` permits the pipeline, asks first, or blocks it. Direct work remains available under all three settings. Typing `ag` does not override `off`.
 
 - **Feature workspaces:** `streams: ask|always|off` controls how ordinary requests for separate feature work are handled. Explicit `new-feature:` still requests creation directly.
+
+- **Feature stream pushes:** `stream-auto-push: on|off` defaults to `on`. `off` keeps a stream's full lifecycle local; it does not change main-workspace delivery.
 
 - **Worker policy:** `allowed-worker: ["external", "internal", "host"]` is an unordered JSON permission list. The host chooses an eligible permitted kind for each task based on context, handoff cost, useful parallel work, capabilities, and owner constraints, and records a brief reason. With multiple eligible kinds and no host choice supplied, the selector returns `selection-required` and the eligible alternatives for the host to choose; a sole eligible kind can be selected automatically. `external` uses a checked command recipe, `internal` hands a frozen brief to an exposed native tool, and `host` uses the current session directly. New projects default to all three; v7 migration keeps `["external", "host"]` until explicitly opted in.
 

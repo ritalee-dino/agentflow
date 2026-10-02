@@ -864,11 +864,12 @@ const close_manifest = (root, delivery = { mode: 'local' }) => {
 	}
 }
 
-const close_fixture = ({ remote = false, notebook_ownership = 'off' } = {}) => {
+const close_fixture = ({ remote = false, notebook_ownership = 'off', stream_auto_push = 'on' } = {}) => {
 	const fixture = make_repo({ remote })
 	const config = ag_settings.make_template('codex')
 	config.switches['target-doc'] = 'devlog.md'
 	config.switches['notebook-ownership'] = notebook_ownership
+	config.switches['stream-auto-push'] = stream_auto_push
 	fs.writeFileSync(path.join(fixture.dir, 'ag.json'), `${JSON.stringify(config, null, 2)}\n`)
 	fs.writeFileSync(path.join(fixture.dir, 'devlog.md'), `${ag_settings.format_status({
 		project: 'demo — a test',
@@ -1291,6 +1292,22 @@ test('authorized push fetches and verifies a local remote without force', () => 
 		fs.rmSync(fixture.dir, { recursive: true, force: true })
 		if (fixture.bare) fs.rmSync(fixture.bare, { recursive: true, force: true })
 	}
+})
+
+test('stream-auto-push off does not disable main-workspace push closeout', () => {
+	const fixture = close_fixture({ remote: true, stream_auto_push: 'off' })
+	try {
+		fs.appendFileSync(path.join(fixture.dir, 'devlog.md'), '\n+ review it yourself\n')
+		const manifest = close_manifest(fixture.dir, { mode: 'push', remote: 'origin', branch: 'main' })
+		manifest.reply += '\n```completion-metadata\nHost review: PASS — inspected the isolated main-workspace push fixture and its remote SHA.\n```\n'
+		const result = spawnSync(process.execPath, [path.join(__dirname, 'agf.js'), 'close', '--manifest-stdin', '--push-authorized'], {
+			cwd: fixture.dir, input: JSON.stringify(manifest), encoding: 'utf8',
+		})
+		assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`)
+		const output = JSON.parse(result.stdout)
+		assert.equal(output.delivery.state, 'pushed')
+		assert.equal(fixture.run(['ls-remote', 'origin', 'refs/heads/main']).split('\t')[0], output.commit.sha)
+	} finally { drop(fixture.dir, fixture.bare) }
 })
 
 test('delivery retry uses the saved closeout commit after the next Ask is captured', () => {
@@ -1767,6 +1784,95 @@ test('finish local-only preparation and delivery never need a remote', () => {
 	assert.equal(run(['rev-parse', 'HEAD']), run(['rev-parse', 'login-page']))
 	assert.ok(!fs.existsSync(agf.delivery_lock_path({ git_common_dir: path.join(dir, '.git') })))
 	drop(dir)
+})
+
+test('stream-auto-push off completes and cleans a stream locally with a configured remote', () => {
+	const { dir, run, bare } = make_repo({ remote: true })
+	try {
+		const config_file = path.join(dir, 'ag.json')
+		const config = JSON.parse(fs.readFileSync(config_file, 'utf8'))
+		config.switches['stream-auto-push'] = 'off'
+		fs.writeFileSync(config_file, `${JSON.stringify(config, null, 2)}\n`)
+		run(['add', 'ag.json'])
+		run(['commit', '-m', 'disable stream auto push'])
+		const remote_main = run(['ls-remote', 'origin', 'refs/heads/main']).split('\t')[0]
+		const new_logs = []
+		const opened = agf.main(['new', 'login page'], dir, message => new_logs.push(message))
+		assert.ok(opened.dir, new_logs.join('\n'))
+		const wt = opened.dir
+		assert.equal(run(['ls-remote', 'origin', 'refs/heads/login-page']).trim(), '')
+		run(['push', 'origin', 'login-page'], wt)
+		const remote_feature = run(['ls-remote', 'origin', 'refs/heads/login-page']).split('\t')[0]
+		run(['remote', 'set-url', '--push', 'origin', path.join(dir, 'unused-push-destination')])
+		commit_stream_file(run, wt, 'feature.txt', 'feature\n')
+		const prep_logs = []
+		assert.equal(agf.main(['finish', '--prep'], wt, message => prep_logs.push(message)), 0)
+		assert.ok(prep_logs.some(message => message.includes('stream-auto-push is off')))
+		assert.ok(!prep_logs.some(message => message.includes('push the committed closing record')))
+		close_local_stream(run, wt, 'login-page')
+		assert.equal(path.resolve(agf.main(['finish', '--deliver'], wt, () => {}).dir), dir)
+		assert.equal(run(['ls-remote', 'origin', 'refs/heads/main']).split('\t')[0], remote_main)
+		assert.equal(run(['ls-remote', 'origin', 'refs/heads/login-page']).split('\t')[0], remote_feature)
+		const cleanup_logs = []
+		assert.equal(path.resolve(agf.main(['cleanup', 'login-page'], dir, message => cleanup_logs.push(message)).dir), dir)
+		assert.ok(cleanup_logs.some(message => message.includes('merge remains local')))
+		assert.equal(run(['ls-remote', 'origin', 'refs/heads/main']).split('\t')[0], remote_main)
+		assert.equal(run(['ls-remote', 'origin', 'refs/heads/login-page']).split('\t')[0], remote_feature)
+		assert.equal(run(['branch', '--list', 'login-page']).trim(), '')
+	} finally { drop(dir, bare) }
+})
+
+test('stream-auto-push off leaves a manually published branch on ditch', () => {
+	const { dir, run, bare } = make_repo({ remote: true })
+	try {
+		const config_file = path.join(dir, 'ag.json')
+		const config = JSON.parse(fs.readFileSync(config_file, 'utf8'))
+		config.switches['stream-auto-push'] = 'off'
+		fs.writeFileSync(config_file, `${JSON.stringify(config, null, 2)}\n`)
+		run(['add', 'ag.json'])
+		run(['commit', '-m', 'disable stream auto push'])
+		const new_logs = []
+		const opened = agf.main(['new', 'login page'], dir, message => new_logs.push(message))
+		assert.ok(opened.dir, new_logs.join('\n'))
+		const wt = opened.dir
+		run(['push', 'origin', 'login-page'], wt)
+		const remote_feature = run(['ls-remote', 'origin', 'refs/heads/login-page']).split('\t')[0]
+		run(['remote', 'set-url', '--push', 'origin', path.join(dir, 'unused-push-destination')])
+		const logs = []
+		assert.equal(path.resolve(agf.main(['ditch', 'login-page'], dir, message => logs.push(message), () => 'Y\n').dir), dir)
+		assert.ok(logs.some(message => message.includes('origin/login-page was left unchanged')))
+		assert.equal(run(['ls-remote', 'origin', 'refs/heads/login-page']).split('\t')[0], remote_feature)
+	} finally { drop(dir, bare) }
+})
+
+test('stream-auto-push off rejects an authorized push closeout before mutation', () => {
+	const { dir, run, bare } = make_repo({ remote: true })
+	try {
+		const config_file = path.join(dir, 'ag.json')
+		const config = JSON.parse(fs.readFileSync(config_file, 'utf8'))
+		config.switches['stream-auto-push'] = 'off'
+		fs.writeFileSync(config_file, `${JSON.stringify(config, null, 2)}\n`)
+		run(['add', 'ag.json'])
+		run(['commit', '-m', 'disable stream auto push'])
+		const opened = agf.main(['new', 'login page'], dir, () => {})
+		assert.ok(opened.dir)
+		const wt = opened.dir
+		const notebook = '.agentflow/features/login-page/login-page.devlog.md'
+		const before = fs.readFileSync(path.join(wt, notebook))
+		const manifest = close_manifest(wt, { mode: 'push', remote: 'origin', branch: 'login-page' })
+		manifest.notebook = notebook
+		manifest.status.notebook = notebook
+		manifest.status.notebook_kind = 'stream'
+		manifest.status.config_path = '.agentflow/features/login-page/ag.json'
+		manifest.allowed_paths = [notebook]
+		const result = spawnSync(process.execPath, [path.join(__dirname, 'agf.js'), 'close', '--manifest-stdin', '--push-authorized'], {
+			cwd: wt, input: JSON.stringify(manifest), encoding: 'utf8',
+		})
+		assert.notEqual(result.status, 0)
+		assert.equal(JSON.parse(result.stdout).error.code, 'stream_auto_push_disabled')
+		assert.deepEqual(fs.readFileSync(path.join(wt, notebook)), before)
+		assert.equal(run(['ls-remote', 'origin', 'refs/heads/login-page']).trim(), '')
+	} finally { drop(dir, bare) }
 })
 
 test('finish preparation never invokes the editor when Git auto-edit is enabled', () => {

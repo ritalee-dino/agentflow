@@ -151,6 +151,8 @@ Push delivery requires both `delivery.mode: "push"` and the separate
 named branch, uses an ordinary non-force push, and verifies the resulting
 remote SHA. Failed or timed-out network work is reported as failed or
 unknown; it is never reported as successful without verification.
+For a feature stream with `stream-auto-push: off`, use local delivery;
+push mode is rejected even with `--push-authorized`.
 
 The older `notebook-write.js close-round` command remains supported for
 recovery and compatibility. It still validates and replaces the notebook but

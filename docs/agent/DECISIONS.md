@@ -91,8 +91,17 @@ The richest rationale source is `skills/agentflow/docs/incidents-log.md` (79 inc
 - **[Documented]** `references/skip-ag.md`, `SKILL.md`, CHANGELOG 8.4.3: `no-ag` skips the whole protocol; `fast-lane` keeps the notebook but waives AG, delegation, new streams and independent review; `skip-ag` waives only the development pipeline and advisors. None changes `ag.json`; each expires with its Ask.
 - **[Implemented]** `fast-lane.js:parse_task_control` shared by `parse_fast_lane` / `parse_skip_ag`; `round-linter.js:lint_round` skips a narrower check set for skip-ag than for fast-lane.
 
+## D20. Startup repairs only missing settings; wrong values need owner permission
+- **[Documented]** CHANGELOG 8.4.7; `SKILL.md` step 2 (`config_audit.invalid` → ask before changing); `README.md`; `docs/AG_GUIDE.md` ("Settings are missing or invalid").
+- **[Implemented]** `agf.js:start_main` / `audit_start_file` writes only template properties that are absent; `ag-settings.js:audit_template` reports invalid values and applies `safe_start_fallbacks` in memory only; other invalid values stop startup. Explicit settings commands stay strict (`strict_values`).
+
+## D21. A verified close is final for the Stop hook
+- **[Documented]** CHANGELOG 8.4.7; `scripts/README.md` (`stop-hook.js`); comment in `closed-round.js` ("A successful close already linted the committed round").
+- **[Implemented]** `closed-round.js:verified_closed_round` checked before `completion-context.js:collect` in `stop-hook.js:main`.
+
 ## Open / uncertain
 - CHANGELOG 8.4.0: native Windows execution of the ownership switch and review-only fixes is stated as unproven.
 - Exact semantics of `internal` (native host tool) execution are mostly policy; code validates records but cannot invoke native tools itself.
-- CHANGELOG 8.3.4 and 8.4.0 note two unresolved pre-existing assertions. Observed on 2026-09-30 at v8.4.0 (unmodified `SKILL.md`): `prompt-compression.test.js` "the always-loaded skill stays within the retained 32 KiB budget" and "the slim front door retains the owner, scope, evidence, and Git boundaries" fail. Re-observed on 2026-10-01 at v8.4.4 (host env markers unset, native Windows): only the 32 KiB budget assertion fails (`SKILL.md` is 32,953 bytes); the front-door assertion passes.
+- CHANGELOG 8.3.4 and 8.4.0 note two unresolved pre-existing assertions. Observed on 2026-09-30 at v8.4.0 (unmodified `SKILL.md`): `prompt-compression.test.js` "the always-loaded skill stays within the retained 32 KiB budget" and "the slim front door retains the owner, scope, evidence, and Git boundaries" fail. Re-observed on 2026-10-01 at v8.4.4 (host env markers unset, native Windows): only the 32 KiB budget assertion fails (`SKILL.md` is 32,953 bytes); the front-door assertion passes. Re-observed on 2026-10-02 at v8.4.7: same single failure (`SKILL.md` is 33,244 bytes).
 - CHANGELOG 8.4.3: native Windows and case-sensitive-filesystem checks for its changes are unavailable; no universal host-parity claim.
+- CHANGELOG 8.4.5 says the release procedure now requires refreshing `skills/agentflow/docs/agent-brief.md` and checking its published bytes; that procedure and any check for it are not present in this public mirror (presumably in the private checkout).

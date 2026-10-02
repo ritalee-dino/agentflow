@@ -48,13 +48,14 @@ flowchart TD
 - `completion-context.js` — gathers live facts (Git, config, review decision, tracker, transcript) and calls `lint_round` (`collect`, `validate_candidate`).
 - `completion-record.js` — review-record validation (`validate_review_record`) and per-Ask completion metadata (`publish_reply`) at `<workspace>/.tmp/.../A-NNN/completion.json`.
 - `completion-cleanup.js` — periodic sweep of old completion records (`sweep_completion_records`), run from the Stop hook when enabled.
+- `closed-round.js` — `verified_closed_round` (since 8.4.7): lets the Stop hook accept the last round as already closed when its Reply is non-empty, the latest commit adding that Reply heading is an ancestor of `HEAD` with exactly one `Agentflow-Close-Id` trailer, the saved close receipt (`notebook-write.js:read_close_scope`) names that commit, and the committed round text equals the live one.
 - `terminal-preflight.js` — manual/recovery wrapper around `lint_round`.
 - `cross-check-plan.js` — deterministic review-depth selector (`narrow|targeted|full|skip`).
 - `suite-evidence.js`, `tracker-contract.js` — test-suite evidence manifests; tracker template/validation.
 - `reply-identity.js` — derives `<model>/<effort>` stamp from the active session transcript only (Codex: `$CODEX_HOME/sessions`; Claude since 8.4.3: the single `<CLAUDE_CONFIG_DIR or ~/.claude>/projects/*/<session>.jsonl` whose main-session, same-cwd last assistant turn supplies `message.model` + `effort`, sidechains excluded). Otherwise `<host>/unknown`.
 
 **Configuration**
-- `ag-settings.js` — schema v8 config: templates per host, validation, v7→v8 migration, atomic writes, STATUS formatting, tier resolution, target-doc rename. Shared by almost every module.
+- `ag-settings.js` — schema v8 config: templates per host, validation, v7→v8 migration, startup template audit (`audit_template`), atomic writes, STATUS formatting, tier resolution, target-doc rename. Shared by almost every module.
 
 **Delegation / execution**
 - `delegation-route.js` — transport-neutral policy: `select_executor_action`, `next_executor_action`, `validate_execution_record`, 3ways debate helpers.
@@ -77,7 +78,8 @@ Verified from `require()` calls. Several cycles exist and are broken with lazy `
 ```mermaid
 flowchart LR
     agf --> ag_settings & notebook_write & notebook_owner & resume_intake & round_linter & completion_context & install_hook & setup & notebook_compact & stream_cleanup
-    stop_hook --> notebook_write & completion_context & round_linter & completion_cleanup & notebook_owner
+    stop_hook --> notebook_write & completion_context & round_linter & completion_cleanup & notebook_owner & closed_round
+    closed_round --> round_linter & notebook_write
     looper --> queue_contract & delegation_route & notebook_write & notebook_owner & round_linter & process_tree
     notebook_write --> completion_context & completion_record & notebook_owner & notebook_compact & round_linter & reply_identity
     completion_context --> round_linter & tracker_contract

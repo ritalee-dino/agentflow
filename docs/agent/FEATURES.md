@@ -10,10 +10,11 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 - **Trigger:** owner says `godev` (or other skill triggers); host runs `node <skill>/scripts/agf.js start --repo <repo> --host <id> --message-stdin --json`.
 - **Entry:** `scripts/agf.js:start_main`.
 - **Core path:** `parse_start_args` → `notebook-owner.js:identity` → `ag-settings.js:initialize_project` or `ensure_configuration` → `update_ignore_file` → `install-hook.js:install` → `notebook-compact.js:compact_locked` → `insert_start_message` → `notebook-write.js:atomic_replace` → `resume-intake.js:collect_intake` → `start_result`/`emit_start_result`.
+- **Settings audit at start (since 8.4.7):** inside the start lock (skipped when resuming an interrupted start), `audit_start_file` runs `ag-settings.js:audit_template` on the root or stream `ag.json` (not on duplicate-key/unparseable/schema-7 files). Missing template properties are written back atomically (switch keys sorted) and reported in `config_audit.added`; invalid saved values are never rewritten, only reported in `config_audit.invalid` (`path`, `value`, `suggested`). Safe switches (`ask-names`, `git-timeout-ms`, `inline-reply`, `lang`, `large-work-minutes`, `log-verbosity`) use the template value in memory; any other invalid value still fails `load_config`, with the template suggestions appended to the error. `SKILL.md` step 2 tells the host to ask the owner before changing reported values.
 - **Route controls at start:** `insert_start_message` also appends a message into a populated Ask when it newly selects `fast-lane` or `skip-ag` (`message.reason` `fast_lane_selected` / `skip_ag_selected`); `start_result` carries `fast_lane` / `skip_ag` from intake when present.
 - **Persistence:** creates `ag.json`, `.agentflow/devlog.md`, `.gitignore` entries, host hook config; ownership record in `.agentflow/.tmp/`.
 - **Policy:** `SKILL.md` "Start here" (answer-recovery gate, `message.reason` handling).
-- **Tests:** `scripts/start-journey.test.js`, `scripts/agf.test.js`, `scripts/resume-intake.test.js`, `scripts/git-optional.test.js`, `scripts/portable-host.test.js`.
+- **Tests:** `scripts/start-journey.test.js`, `scripts/agf.test.js` (incl. config audit, unsafe-value stop, v7 migration before audit), `scripts/resume-intake.test.js`, `scripts/git-optional.test.js`, `scripts/portable-host.test.js`.
 
 ## 2. Message capture
 
@@ -40,16 +41,16 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 - **Reply stamp:** `notebook-write.js:render_reply` (passes `host` + `session`) → `reply-identity.js:detect_reply_identity` (Codex and, since 8.4.3, Claude transcripts).
 - **Idempotency:** `close_find_commit` / `match_closed_close` / `read_close_scope` make retries report the existing commit.
 - **Output:** JSON with `display.text` (Reply or `<notebook> updated`, per `inline-reply`).
-- **Policy:** `references/closeout.md` (manifest shape, Reply format, review requirements).
+- **Policy:** `references/closeout.md` (manifest shape, Reply format, review requirements). Since 8.4.6 `[SUMMARY]` holds exactly one bullet per numbered `[FINAL REPORT]` item, in the same order (policy only).
 - **Tests:** `scripts/agf.test.js`, `scripts/notebook-write.test.js`, `scripts/close-language-journey.js`, `scripts/no-ag-closeout.test.js`, `scripts/transport-integration.test.js`.
 
 ## 5. Stop-hook referee
 
 - **Purpose:** independent end-of-turn check; block (exit 2) only when a completed round fails the linter.
 - **Entry:** `scripts/stop-hook.js:main` (installed as `node stop-hook.js --host <codex|claude>`).
-- **Core path:** resolve notebook (root or stream) → `completion-context.js:collect` (with transcript, real clock) → `round-linter.js:lint_round` → on pass, `completion-cleanup.js:sweep_completion_records`.
+- **Core path:** resolve notebook (root or stream) → `closed-round.js:verified_closed_round` (since 8.4.7; a verified closed last round exits 0 without linting, so later working-file edits cannot revoke it) → `completion-context.js:collect` (with transcript, real clock) → `round-linter.js:lint_round` → on pass, `completion-cleanup.js:sweep_completion_records`.
 - **Guards:** `stop_hook_active` → exit 0; valid `AGENTFLOW_EXTERNAL_DELEGATE` → exit 0; fails open on internal errors.
-- **Tests:** `scripts/stop-hook.test.js`, `scripts/stop-hook-recovery.test.js`, `scripts/long-round-hook-journey.js`.
+- **Tests:** `scripts/stop-hook.test.js`, `scripts/stop-hook-recovery.test.js`, `scripts/closed-round.test.js`, `scripts/long-round-hook-journey.js`.
 
 ## 6. Round linter (validation rules)
 
@@ -87,9 +88,10 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 
 - **Purpose:** validate, show, change, migrate, rename notebook.
 - **Entry:** `scripts/agf.js:settings_main` → `scripts/ag-settings.js` (`validate_config`, `change_configuration`, `apply_changes`, `parse_change_lines`, `rename_target_document`, `migrate_config`, `format_status`, `resolve_worker_tier`).
-- **Templates:** `ag-settings.js:host_template_values` (defaults, external worker profiles and model tiers).
+- **Templates:** `ag-settings.js:host_template_values` (defaults, external worker profiles and model tiers); switch keys alphabetical and include `away-gates: off` since 8.4.7. `canonical_config` also writes switches sorted.
+- **Audit vs strict reads:** `audit_template` (template fill + invalid-value report, used by startup). `read_json_config` without `strict_values` substitutes safe fallbacks when validation fails and no property is missing; `agf settings validate|show` and `change_configuration` pass `strict_values: true` and reject any invalid value. Since 8.4.7 `notebook_controls` falls back to defaults for invalid `log-verbosity` / `inline-reply` instead of throwing (invalid `notebook-ownership` still throws).
 - **Rename safety:** `rename_target_document_locked` snapshots source and destination `ag.json` text and refuses with `AG_RENAME_CONFIG_CHANGED` if either changed during the rename; ownership context is re-verified before and after the move.
-- **Tests:** `scripts/ag-settings.test.js`, `scripts/threeways-tier-journey.js`, `scripts/log-controls.test.js`.
+- **Tests:** `scripts/ag-settings.test.js`, `scripts/threeways-tier-journey.js`, `scripts/log-controls.test.js`, `scripts/terminal.test.js` (away-gates PTY).
 
 ## 11. Streams (feature worktrees)
 
@@ -160,3 +162,11 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 - **Linter effect:** `workflow_check` skips `large_work_route`, `queue_contract`, `security_disposition`, `acceptance_disposition`, `pipeline_artifacts`, `quality_gate`; `route_decision` fails on `selected_advisors`/`full_pipeline` and otherwise calls `lint_route_decision(..., { skip_pipeline: true })`; `skip_ag_task` fails if a pending skip-ag round has a Reply. `executor_decision` and review checks still run.
 - **Policy:** `references/skip-ag.md`; mentioned in `SKILL.md`, `references/ag.md`, `closeout.md`, `delegation.md`, `fast-lane.md`.
 - **Tests:** `scripts/fast-lane.test.js` (skip-ag cases), `scripts/terminal.test.js` (PTY, both hosts), `scripts/alignment.test.js` (documentation presence).
+
+## 21. Away gates (`away-gates` switch, added 8.4.5)
+
+- **Purpose:** let Agentflow supply Design Go and Result Go for consequential work after the normal evidence passes, project-wide, instead of per Ask with `away: gates`. Does not override Stop, owner-only choices or failed checks.
+- **Config:** optional `switches.away-gates` `on|off`, absent = `off` (`ag-settings.js:switch_display_value`, `validate_switches`).
+- **Entry:** `scripts/completion-context.js:collect` reads `away-gates` from the active `ag.json` into the lint context → `scripts/round-linter.js:lint_quality_gate` treats `metadata_context['away-gates'] === 'on'` as authorization (alternative to `facts.away_gates` + exact Ask line `away: gates`), including for the renewed Design Go after a repeated concept. Since 8.4.5 a `journey.red_proven` / `green_proven` of `false` fails the gate.
+- **Policy:** `SKILL.md` (consequential work, controls list) — rule tagged I-067; `docs/AG_GUIDE.md`.
+- **Tests:** `scripts/round-linter.test.js` (`quality_gate accepts configured away-gates on ...`, `configured away-gates supplies the renewed Design Go ...`), `scripts/completion-context.test.js`, `scripts/ag-settings.test.js`, `scripts/terminal.test.js`.

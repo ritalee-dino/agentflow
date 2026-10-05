@@ -6,12 +6,12 @@ Agentflow is an **AI-agent skill** (prompt instructions + zero-dependency Node.j
 
 Users: a human "owner" talking to a host agent (verified: Codex CLI and Claude Code; generic hookless hosts supported manually). The scripts are invoked by the host agent, by host hooks, or by the owner through the `agf` / `agf-looper` shell shortcuts.
 
-This repository is the **public release mirror** (current version 8.4.7). Commits are titled `release: agentflow @ <private-sha>`; development happens in a separate private checkout (inferred from commit titles and `SKILL.md` release guidance).
+This repository is the **public release mirror** (current version 8.4.14). Commits are titled `release: agentflow @ <private-sha>`; development happens in a separate private checkout (inferred from commit titles and `SKILL.md` release guidance).
 
 ## Major use cases
 
 - Start or resume a task with `godev` → `agf.js start`.
-- Per-Ask route controls: `fast-lane`, `skip-ag` (skip only the development pipeline/advisors), `no-ag`.
+- Route controls: per-Ask `fast-lane`, `skip-ag` (skip only the development pipeline/advisors); per-message `no-ag` (bypass the whole protocol for one submitted message, since 8.4.12).
 - Capture every owner message into the current Ask (hook or manual).
 - Close a round: validate, write Reply + STATUS, commit, optionally push → `agf close`.
 - Referee a finished turn via host Stop hook → `stop-hook.js`.
@@ -38,7 +38,7 @@ README.md, README.zh-tw.md  Install/usage (tests assert content)
 copy_skills.sh           Local maintainer helper: copies skill to ~/.agents/skills (not part of product)
 skills/agentflow/
   SKILL.md               Always-loaded model instructions (version in frontmatter + heading)
-  references/            Trigger-loaded rulebooks (closeout, progress, writing, streams, ag, delegation, looper, fast-lane, skip-ag, skill-conflicts)
+  references/            Trigger-loaded rulebooks (closeout, progress, writing, streams, ag, delegation, looper, fast-lane, skip-ag, mixed-requests, skill-conflicts)
   references/advisors/   Pipeline advisor role prompts (requirements, codewalk, explore, spike, spec, security-scan, acceptance, learn)
   docs/                  Owner guides (EN/zh-TW), agent-brief.md (orientation brief for a new assistant, linked from READMEs since 8.4.5), incidents-log.md, skill-editing guide
   scripts/               All executable logic + colocated *.test.js
@@ -80,9 +80,9 @@ Opt-in / special checks (see `skills/agentflow/scripts/README.md`):
 - `*-journey.js` scripts: real PTY/terminal journeys (some need Expect/macOS; `codex-live-journey.js` and `claude-live-journey.js` make paid model calls).
 - `looper-live-gate.js --report <path>`: mandatory final gate for any looper behavior change (real provider calls).
 
-Platform notes: Unix-only tests skip on native Windows; the looper is not supported on native Windows (per README and CHANGELOG 8.3.4). CHANGELOG 8.3.4 and 8.4.0 record two known pre-existing failing assertions in `prompt-compression.test.js`; at v8.4.4 and v8.4.7 only the 32 KiB budget assertion was observed failing (see [DECISIONS.md](DECISIONS.md) "Open / uncertain") — do not assume a fully green suite.
+Platform notes: Unix-only tests skip on native Windows; the looper is not supported on native Windows (per README and CHANGELOG 8.3.4). CHANGELOG 8.3.4 and 8.4.0 record two known pre-existing failing assertions in `prompt-compression.test.js`; at v8.4.4, v8.4.7 and v8.4.14 only the 32 KiB budget assertion was observed failing (see [DECISIONS.md](DECISIONS.md) "Open / uncertain") — do not assume a fully green suite.
 
-Host environment leakage: running tests from inside a Claude Code or Codex session leaks runtime markers listed in `ag-settings.js:host_markers` (e.g. `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_ENTRYPOINT`, `CLAUDE_CODE_SSE_PORT`, `CODEX_THREAD_ID`). Fixtures that set the other host then fail with `AG_HOST_AMBIGUOUS` ("active host is ambiguous"). Unset those variables before running the suite. On native Windows without symlink privilege, symlink-based tests (e.g. in `completion-record.test.js`, `ag-settings.test.js` "target document validation ...") fail with `EPERM`.
+Host environment leakage: running tests from inside a Claude Code or Codex session leaks runtime markers listed in `ag-settings.js:host_markers` (e.g. `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_ENTRYPOINT`, `CLAUDE_CODE_SSE_PORT`, `CODEX_THREAD_ID`). Fixtures that set the other host then fail with `AG_HOST_AMBIGUOUS` ("active host is ambiguous"). Unset those variables before running the suite. On native Windows without symlink privilege, symlink-based tests (e.g. in `completion-record.test.js`, `ag-settings.test.js` "target document validation ...") fail with `EPERM`. Since 8.4.9/8.4.11 `install-hook.js:installed_script_for` resolves hook paths under the real `os.homedir()` (`~/.codex|.claude/skills/agentflow/scripts/`), so a globally installed Agentflow on the test machine changes generated hook paths; on 2026-10-05 (native Windows, `~/.claude/skills/agentflow` present) `install-hook.test.js` path/guard cases failed alongside the `EPERM` symlink cases (43 of 1,502 failed overall; cause per test not individually confirmed).
 
 ## Configuration
 

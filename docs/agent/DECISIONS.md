@@ -26,6 +26,7 @@ The richest rationale source is `skills/agentflow/docs/incidents-log.md` (79 inc
 ## D4. The notebook is the single authoritative, append-only history
 - **[Documented]** `SKILL.md` step 6: completed spans and archived bytes are immutable; STATUS is a mutable projection; only verified byte-preserving compaction may move history.
 - **[Implemented]** `notebook-compact.js` verifies id, length, SHA-256 before removing live bytes; I-065 (line-oriented repair changed content).
+- **[Changed in 8.4.9–8.4.14]** CHANGELOG: automatic archiving starts earlier (750 lines), rounds with inline `-> ask:` / `-> ans:` are retained like `ans:`, and a retained round is reported at startup/capture. Answered history is archived only after complete saved answers are verified; a completed round or answered marker alone is not proof (`SKILL.md` step 6; `notebook-compact.js:compact_locked`).
 
 ## D5. One-command startup and closeout
 - **[Documented]** `SKILL.md` step 2 and `references/closeout.md`; I-073, I-077 (hand-built calls caused retries).
@@ -88,8 +89,9 @@ The richest rationale source is `skills/agentflow/docs/incidents-log.md` (79 inc
 - **[Implemented]** `install-hook.js` only writes Claude/Codex configs; generic hosts get `hooks: not_available` and manual capture/close instructions.
 
 ## D19. Graduated per-Ask opt-outs that are not aliases
-- **[Documented]** `references/skip-ag.md`, `SKILL.md`, CHANGELOG 8.4.3: `no-ag` skips the whole protocol; `fast-lane` keeps the notebook but waives AG, delegation, new streams and independent review; `skip-ag` waives only the development pipeline and advisors. None changes `ag.json`; each expires with its Ask.
+- **[Documented]** `references/skip-ag.md`, `SKILL.md`, CHANGELOG 8.4.3: `no-ag` skips the whole protocol; `fast-lane` keeps the notebook but waives AG, delegation, new streams and independent review; `skip-ag` waives only the development pipeline and advisors. None changes `ag.json`; `fast-lane` and `skip-ag` expire with their Ask.
 - **[Implemented]** `fast-lane.js:parse_task_control` shared by `parse_fast_lane` / `parse_skip_ag`; `round-linter.js:lint_round` skips a narrower check set for skip-ag than for fast-lane.
+- **[Changed in 8.4.12]** `no-ag` lasts one submitted message and is enforced at the hook boundary (`stop-hook.js` + `completion-context.js:no_ag_bypass`); the saved-round review waiver and bypass-marker fallback were removed, so Stop relies only on current prompt/transcript evidence. Quotation handling for all controls and review waivers was unified in `owner-control-text.js:unquoted_control_text`.
 
 ## D20. Startup repairs only missing settings; wrong values need owner permission
 - **[Documented]** CHANGELOG 8.4.7; `SKILL.md` step 2 (`config_audit.invalid` → ask before changing); `README.md`; `docs/AG_GUIDE.md` ("Settings are missing or invalid").
@@ -99,9 +101,18 @@ The richest rationale source is `skills/agentflow/docs/incidents-log.md` (79 inc
 - **[Documented]** CHANGELOG 8.4.7; `scripts/README.md` (`stop-hook.js`); comment in `closed-round.js` ("A successful close already linted the committed round").
 - **[Implemented]** `closed-round.js:verified_closed_round` checked before `completion-context.js:collect` in `stop-hook.js:main`.
 
+## D22. Hooks run the installed skill copy, not the checkout that installed them
+- **[Documented]** CHANGELOG 8.4.9 and 8.4.11 (issues #25, #26): hook commands use the installed Agentflow directory; project-scoped Skills and Claude plugin-cache installs fall back to the running installation; recognized stale hooks are repaired at startup or reinstall; symlink spelling is preserved.
+- **[Implemented]** `install-hook.js:installed_script_for`, `is_legacy_agentflow_command`, `is_our_guard`; `stream-cleanup.js:owned_hooks` accepts the installed path.
+
+## D23. Startup never rewrites existing ignore rules
+- **[Documented]** CHANGELOG 8.4.8 (issue #22): missing defaults are added before the original text; comments, blank lines, line endings, a missing final newline and project skill exceptions are preserved; conflicting broad rules from older versions are not auto-repaired.
+- **[Implemented]** `agf.js:update_ignore_file`.
+
 ## Open / uncertain
 - CHANGELOG 8.4.0: native Windows execution of the ownership switch and review-only fixes is stated as unproven.
 - Exact semantics of `internal` (native host tool) execution are mostly policy; code validates records but cannot invoke native tools itself.
-- CHANGELOG 8.3.4 and 8.4.0 note two unresolved pre-existing assertions. Observed on 2026-09-30 at v8.4.0 (unmodified `SKILL.md`): `prompt-compression.test.js` "the always-loaded skill stays within the retained 32 KiB budget" and "the slim front door retains the owner, scope, evidence, and Git boundaries" fail. Re-observed on 2026-10-01 at v8.4.4 (host env markers unset, native Windows): only the 32 KiB budget assertion fails (`SKILL.md` is 32,953 bytes); the front-door assertion passes. Re-observed on 2026-10-02 at v8.4.7: same single failure (`SKILL.md` is 33,244 bytes).
+- CHANGELOG 8.3.4 and 8.4.0 note two unresolved pre-existing assertions. Observed on 2026-09-30 at v8.4.0 (unmodified `SKILL.md`): `prompt-compression.test.js` "the always-loaded skill stays within the retained 32 KiB budget" and "the slim front door retains the owner, scope, evidence, and Git boundaries" fail. Re-observed on 2026-10-01 at v8.4.4 (host env markers unset, native Windows): only the 32 KiB budget assertion fails (`SKILL.md` is 32,953 bytes); the front-door assertion passes. Re-observed on 2026-10-02 at v8.4.7: same single failure (`SKILL.md` is 33,244 bytes). Re-observed on 2026-10-05 at v8.4.14: same single failure (`SKILL.md` is 36,473 bytes).
 - CHANGELOG 8.4.3: native Windows and case-sensitive-filesystem checks for its changes are unavailable; no universal host-parity claim.
+- CHANGELOG 8.4.11 mentions enabling Linux terminal checks to recognize `/dev/pts` devices and reports five pre-existing failed checks in four groups on Ubuntu; no `/dev/pts` handling is visible in this public mirror's scripts.
 - CHANGELOG 8.4.5 says the release procedure now requires refreshing `skills/agentflow/docs/agent-brief.md` and checking its published bytes; that procedure and any check for it are not present in this public mirror (presumably in the private checkout).

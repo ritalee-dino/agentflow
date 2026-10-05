@@ -34,7 +34,7 @@ flowchart TD
 - `agf.js` — unified CLI and orchestration of start, close (validate → replace → commit → push), streams (`new`, `finish --prep/--deliver`, `cleanup`, `ditch`), `init`, `setup`, `hooks`, `settings`, `review`, `uninstall`; delegates `owner`, `compact`, `skills` to other modules. Holds the delivery lock (`acquire_delivery_lock`).
 - `looper.js` — standalone sequential plan runner (`agf-looper`), plus interactive-host claim API (`claim_host_plan`, `finish_host_plan`).
 - `setup.js` — shell shortcut (`agf()`, `agf-looper()`) detection/installation.
-- `install-hook.js` — install/remove Stop + UserPromptSubmit hooks in `.claude/settings.json` or `.codex/hooks.json` (project or global) and the Git pre-commit guard.
+- `install-hook.js` — install/remove Stop + UserPromptSubmit hooks in `.claude/settings.json` or `.codex/hooks.json` (project or global) and the Git pre-commit guard. Since 8.4.9/8.4.11 generated commands point at the installed skill copy (`installed_script_for`: `~/.<host>/skills/agentflow/scripts/`, then the other host's global copy, then the running installation), keeping symlink spelling; recognized older Agentflow commands (`is_legacy_agentflow_command`) and guard scripts (`is_our_guard`) are migrated in place while unrelated hooks are preserved.
 
 **Notebook core**
 - `notebook-write.js` — the only notebook writer: append input/RUN/WIP/Reply, `close_round`, `prepare_close_candidate`, locks (`acquire_close_round_lock`), atomic replace, input/close receipts under `<workspace>/.tmp/`.
@@ -45,7 +45,7 @@ flowchart TD
 
 **Validation / evidence**
 - `round-linter.js` — host-neutral, no-AI grader of a completed round (`parse_devlog`, `lint_round` aggregating ~30+ ordered checks). Largest module.
-- `completion-context.js` — gathers live facts (Git, config, review decision, tracker, transcript) and calls `lint_round` (`collect`, `validate_candidate`).
+- `completion-context.js` — gathers live facts (Git, config, review decision, tracker, transcript) and calls `lint_round` (`collect`, `validate_candidate`). Also exports the `no-ag` detector `no_ag_bypass` and `latest_owner_prompt` (latest owner turn of the same session from a Codex/Claude transcript) for `stop-hook.js` (since 8.4.12).
 - `completion-record.js` — review-record validation (`validate_review_record`) and per-Ask completion metadata (`publish_reply`) at `<workspace>/.tmp/.../A-NNN/completion.json`.
 - `completion-cleanup.js` — periodic sweep of old completion records (`sweep_completion_records`), run from the Stop hook when enabled.
 - `closed-round.js` — `verified_closed_round` (since 8.4.7): lets the Stop hook accept the last round as already closed when its Reply is non-empty, the latest commit adding that Reply heading is an ancestor of `HEAD` with exactly one `Agentflow-Close-Id` trailer, the saved close receipt (`notebook-write.js:read_close_scope`) names that commit, and the committed round text equals the live one.
@@ -69,7 +69,7 @@ flowchart TD
 - `devlog-guard.js` — pre-commit guard blocking root notebook/config staging on a non-default branch.
 
 **Misc**
-- `fast-lane.js` (`parse_fast_lane`, `parse_skip_ag`; both wrap the shared line parser `parse_task_control`), `local-time.js` (numeric-offset timestamps), `skills-audit.js` (read-only inventory of installed skills).
+- `fast-lane.js` (`parse_fast_lane`, `parse_skip_ag`; both wrap the shared line parser `parse_task_control`), `owner-control-text.js` (`unquoted_control_text`, since 8.4.12: the one quotation reader that blanks single/double/curly quotes and backticks, including multiline, before control parsing; used by `fast-lane.js` and `completion-context.js`), `local-time.js` (numeric-offset timestamps), `skills-audit.js` (read-only inventory of installed skills).
 
 ## Dependency relationships
 
@@ -88,7 +88,7 @@ flowchart LR
     notebook_owner --> ag_settings
 ```
 
-`ag-settings.js`, `local-time.js`, and `fast-lane.js` are leaf-level utilities used broadly. `ag-settings.js` itself requires `round-linter`, `notebook-write`, and `notebook-owner` lazily for rename/STATUS work.
+`ag-settings.js`, `local-time.js`, `owner-control-text.js` and `fast-lane.js` (which requires only `owner-control-text.js`) are leaf-level utilities used broadly. `ag-settings.js` itself requires `round-linter`, `notebook-write`, and `notebook-owner` lazily for rename/STATUS work.
 
 ## Persistence
 
@@ -110,7 +110,7 @@ Writes are atomic (temp file + rename), guarded by lock files and identity/hash 
 
 - **Git CLI** — branches, worktrees (`.worktrees/<taskkey>`), commits with `Agentflow-Close-Id` trailer, non-force push with remote SHA verification.
 - **Host CLIs as workers** — `codex exec`, `claude -p` (profiles in `ag.json` `external-workers`), launched only via `external-runner.js`.
-- **Host hook systems** — Claude Code `.claude/settings.json`, Codex `.codex/hooks.json`; both use `{hooks: {Stop|UserPromptSubmit: [...]}}` and call `stop-hook.js --host <codex|claude>`.
+- **Host hook systems** — Claude Code `.claude/settings.json`, Codex `.codex/hooks.json`; both use `{hooks: {Stop|UserPromptSubmit: [...]}}` and call `stop-hook.js --host <codex|claude>` from the installed skill directory (not a development checkout; see `install-hook.js` above).
 - **Host transcripts** — read by `reply-identity.js` / `completion-context.js` for Reply stamps and terminal-output checks.
 - **Shell rc files** — `setup.js --fix` appends managed `agf()`/`agf-looper()` functions after backup.
 

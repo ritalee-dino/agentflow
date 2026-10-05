@@ -23,18 +23,18 @@ agf.js:main → COMMANDS.start → start_main
   notebook-write.js:acquire_close_round_lock
   notebook-owner.js:guard(allow_missing, resume_unclaimed)   (ownership off: current-Ask check only, no record)
   ag-settings.js:ensure_configuration | initialize_project   (creates ag.json + notebook; audit runs here if not yet done)
-  update_ignore_file (.gitignore)
-  install-hook.js:install (host hooks, quiet)
-  notebook-compact.js:compact_locked (auto-compaction)
+  update_ignore_file (.gitignore; prepends only missing defaults, owner bytes preserved since 8.4.8)
+  install-hook.js:install (host hooks, quiet; points at the installed skill copy and repairs stale Agentflow commands)
+  notebook-compact.js:compact_locked (auto-compaction) → blocked? keep { blocked, message } as compaction
   insert_start_message → into an empty final Ask; into a populated Ask only when the message newly selects fast-lane / skip-ag
   notebook-write.js:capture_input_scope, atomic_replace
   release locks
   resume-intake.js:collect_intake → STATUS, final Ask, changed paths, stream_decision
-  start_result → JSON (repository, notebook, git, next_run_id, setup, message, stream_decision, hooks, optional fast_lane / skip_ag / config_audit {added, invalid})
+  start_result → JSON (repository, notebook, git, next_run_id, setup, message, stream_decision, hooks, optional compaction / fast_lane / skip_ag / config_audit {added, invalid})
 ```
 
 Side effects: may create `ag.json` (or add missing template properties to an existing one), notebook, `.gitignore` entries, `.claude/settings.json` or `.codex/hooks.json`, ownership record. No commit.
-Afterwards *(policy)*: answer-recovery gate, load `references/writing.md`, `closeout.md`, `progress.md`, choose route (`direct|selected_advisors|full_pipeline|blocked`).
+Afterwards *(policy)*: answer-recovery gate (`ans:`, inline `-> ask:` / `-> ans:`), then follow-through on any `compaction.blocked` (verify saved answers before `agf compact --include-answered true`), load `references/writing.md`, `closeout.md`, `progress.md` (plus `mixed-requests.md` when triggered), choose route (`direct|selected_advisors|full_pipeline|blocked`).
 Tests: `start-journey.test.js`, `agf.test.js`, `resume-intake.test.js`, `git-optional.test.js`.
 
 ## 2. Per-message capture (UserPromptSubmit hook)
@@ -42,16 +42,17 @@ Tests: `start-journey.test.js`, `agf.test.js`, `resume-intake.test.js`, `git-opt
 ```text
 host hook → stop-hook.js --host <codex|claude> (stdin JSON: hook_event_name, prompt, cwd, session_id, turn_id)
   resolve project dir (CLAUDE_PROJECT_DIR for claude, else input.cwd)
+  completion-context.js:no_ag_bypass(prompt) → exit 0, no output, nothing read or written (since 8.4.12)
   resolve notebook: linked worktree → stream notebook; else ag.json target-doc
   no notebook → exit 0
   last round already has Reply → emit notice "not saved", exit 0
-  notebook-write.js:append_input(host, session, message_id)
+  notebook-write.js:append_input(host, session, message_id)   (runs compact_locked; returns compaction when blocked)
      └─ AG_NOTEBOOK_OWNER error → emit ownership notice, exit 0
   fast-lane.js:parse_fast_lane, else parse_skip_ag → optional route notice (fast-lane wins if both)
-  stdout: hookSpecificOutput.additionalContext
+  stdout: hookSpecificOutput.additionalContext (+ compaction.message when present, since 8.4.14)
 ```
 
-Hookless hosts run `notebook-write.js append-input --notebook <path> --input-stdin --host <id>` manually. Tests: `stop-hook.test.js`, `notebook-write.test.js`, `notebook-boundary-journey.test.js`.
+Hookless hosts run `notebook-write.js append-input --notebook <path> --input-stdin --host <id>` manually. Tests: `stop-hook.test.js`, `notebook-write.test.js`, `notebook-boundary-journey.test.js`, `no-ag-hook.test.js`, `notebook-compact.test.js`.
 
 ## 3. Closeout (`agf close`)
 
@@ -91,6 +92,8 @@ host Stop hook → stop-hook.js:main
   stop_hook_active === true → exit 0         (one-correction loop guard)
   AGENTFLOW_EXTERNAL_DELEGATE valid → exit 0  (delegated worker, I-044)
   --host must be codex|claude (I-043)
+  input.prompt, else completion-context.js:latest_owner_prompt(transcript_path, session_id)
+     no_ag_bypass → exit 0 (since 8.4.12; other session or no current input → ordinary checks)
   resolve notebook (same as capture); missing → exit 0
   only empty bootstrap Ask → exit 0
   closed-round.js:verified_closed_round (Reply + close commit + Agentflow-Close-Id + receipt + committed round text) → exit 0
@@ -102,7 +105,7 @@ host Stop hook → stop-hook.js:main
   internal error → fail open
 ```
 
-Tests: `stop-hook.test.js`, `stop-hook-recovery.test.js`, `closed-round.test.js`.
+Tests: `stop-hook.test.js`, `stop-hook-recovery.test.js`, `closed-round.test.js`, `no-ag-hook.test.js`; PTY `no-ag-hook-journey.js`.
 
 ## 5. Delegated worker execution
 
@@ -167,13 +170,15 @@ Tests: `agf.test.js`, `streams-off.test.js`, `devlog-guard.test.js`, `branch-saf
 ## 8. Notebook compaction
 
 ```text
-start / capture → notebook-compact.js:compact_locked(force=false) when > 1,000 lines or ≥ 768 KiB
+start / capture → notebook-compact.js:compact_locked(force=false) when ≥ 750 lines (since 8.4.10) or ≥ 768 KiB
 agf compact → compact (locks + ownership) [--include-answered true]
-  select completed rounds (retain current round, answered rounds unless included)
+  select completed rounds in order; stop at the first open round or, unless included,
+    the first round with non-empty ans: / -> ask: / -> ans:  → result.blocked + message
   append exact bytes to adjacent archive; verify id, length, SHA-256; then remove live bytes
+  blocked → reported as compaction in agf start output and the capture hook notice (since 8.4.14)
 ```
 
-Tests: `notebook-compact.test.js`.
+Tests: `notebook-compact.test.js`, `start-journey.test.js`.
 
 ## Error propagation conventions
 

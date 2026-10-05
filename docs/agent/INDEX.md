@@ -1,6 +1,6 @@
 # Agent knowledge base — index
 
-Navigation layer for AI coding agents working **on** this repository (developing Agentflow itself). Source code and the skill Markdown under `skills/agentflow/` are authoritative; these notes only help you find them. Snapshot: v8.4.7, 2026-10-02 (verified against public commit `216c75f`; earlier text was written against v8.4.0 and v8.4.4).
+Navigation layer for AI coding agents working **on** this repository (developing Agentflow itself). Source code and the skill Markdown under `skills/agentflow/` are authoritative; these notes only help you find them. Snapshot: v8.4.14, 2026-10-05 (verified against release commit `d0a6dd0`; incremental update from the v8.4.7 snapshot at `216c75f`; earlier text was written against v8.4.0, v8.4.4 and v8.4.7).
 
 ## Which document to read
 
@@ -10,7 +10,7 @@ Navigation layer for AI coding agents working **on** this repository (developing
 | How do the parts fit together, what depends on what, where is state stored? | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | "Where is feature X implemented?" / which files and tests own X | [FEATURES.md](FEATURES.md) |
 | "What happens when X runs?" (startup, capture, closeout, Stop hook, looper, streams) | [FLOWS.md](FLOWS.md) |
-| What does Ask / RUN / STATUS / stream / tier / cross-check / skip-ag mean? | [GLOSSARY.md](GLOSSARY.md) |
+| What does Ask / RUN / STATUS / stream / tier / cross-check / skip-ag / no-ag mean? | [GLOSSARY.md](GLOSSARY.md) |
 | Why is it built this way? Why does rule Y exist? | [DECISIONS.md](DECISIONS.md), then `skills/agentflow/docs/incidents-log.md` |
 
 ## Two kinds of "source" in this repo

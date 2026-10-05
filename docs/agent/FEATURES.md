@@ -12,17 +12,19 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 - **Core path:** `parse_start_args` → `notebook-owner.js:identity` → `ag-settings.js:initialize_project` or `ensure_configuration` → `update_ignore_file` → `install-hook.js:install` → `notebook-compact.js:compact_locked` → `insert_start_message` → `notebook-write.js:atomic_replace` → `resume-intake.js:collect_intake` → `start_result`/`emit_start_result`.
 - **Settings audit at start (since 8.4.7):** inside the start lock (skipped when resuming an interrupted start), `audit_start_file` runs `ag-settings.js:audit_template` on the root or stream `ag.json` (not on duplicate-key/unparseable/schema-7 files). Missing template properties are written back atomically (switch keys sorted) and reported in `config_audit.added`; invalid saved values are never rewritten, only reported in `config_audit.invalid` (`path`, `value`, `suggested`). Safe switches (`ask-names`, `git-timeout-ms`, `inline-reply`, `lang`, `large-work-minutes`, `log-verbosity`) use the template value in memory; any other invalid value still fails `load_config`, with the template suggestions appended to the error. `SKILL.md` step 2 tells the host to ask the owner before changing reported values.
 - **Route controls at start:** `insert_start_message` also appends a message into a populated Ask when it newly selects `fast-lane` or `skip-ag` (`message.reason` `fast_lane_selected` / `skip_ag_selected`); `start_result` carries `fast_lane` / `skip_ag` from intake when present.
-- **Persistence:** creates `ag.json`, `.agentflow/devlog.md`, `.gitignore` entries, host hook config; ownership record in `.agentflow/.tmp/`.
-- **Policy:** `SKILL.md` "Start here" (answer-recovery gate, `message.reason` handling).
-- **Tests:** `scripts/start-journey.test.js`, `scripts/agf.test.js` (incl. config audit, unsafe-value stop, v7 migration before audit), `scripts/resume-intake.test.js`, `scripts/git-optional.test.js`, `scripts/portable-host.test.js`.
+- **Archive retention notice (since 8.4.14):** when `compact_locked` returns `blocked`, the start result (JSON and text) carries `compaction: {blocked: {ask, reason}, message}`; `SKILL.md` step 6 requires follow-through after the answer-recovery gate.
+- **Persistence:** creates `ag.json`, `.agentflow/devlog.md`, `.gitignore` entries, host hook config; ownership record in `.agentflow/.tmp/`. Since 8.4.8 `agf.js:update_ignore_file` only prepends missing defaults (`.claude/`, `.codex/`, `.worktrees/`) and leaves existing rules (including `!`/`/`-prefixed directory exceptions), comments, line endings and a missing final newline byte-for-byte.
+- **Policy:** `SKILL.md` "Start here" (answer-recovery gate, which since 8.4.11 also covers owner-written inline `-> ask:` / `-> ans:` in prior Replies and the `-> answered in Reply / A-XXX` marker; `message.reason` handling).
+- **Tests:** `scripts/start-journey.test.js`, `scripts/agf.test.js` (incl. config audit, unsafe-value stop, v7 migration before audit, ignore-file preservation), `scripts/resume-intake.test.js`, `scripts/git-optional.test.js`, `scripts/portable-host.test.js`.
 
 ## 2. Message capture
 
 - **Purpose:** save every owner message into the current Ask before acting.
 - **Trigger:** host `UserPromptSubmit` hook (Codex/Claude) or manual `notebook-write.js append-input --input-stdin` on hookless hosts.
 - **Entry:** `scripts/stop-hook.js:main` (branch `hook_event_name === 'UserPromptSubmit'`); `scripts/notebook-write.js:append_input`, `format_owner_input`.
-- **Side effects:** appends `+ <message>` lines; writes input receipt in `<workspace>/.tmp/`; returns hook `additionalContext` notice (including fast-lane notice). Ownership conflicts do not block the prompt (notice only).
-- **Tests:** `scripts/notebook-write.test.js`, `scripts/stop-hook.test.js`, `scripts/notebook-boundary-journey.test.js`, `scripts/stop-hook-recovery.test.js`.
+- **Side effects:** appends `+ <message>` lines; writes input receipt in `<workspace>/.tmp/`; returns hook `additionalContext` notice (including fast-lane notice, and since 8.4.14 the archive retention message when `append_input` returns `compaction`, also for duplicate input and bare activation). Ownership conflicts do not block the prompt (notice only).
+- **Bypass:** an unquoted `no-ag` prompt skips capture entirely (section 22).
+- **Tests:** `scripts/notebook-write.test.js`, `scripts/stop-hook.test.js`, `scripts/notebook-boundary-journey.test.js`, `scripts/stop-hook-recovery.test.js`, `scripts/notebook-compact.test.js` (retention notice on capture), `scripts/no-ag-hook.test.js`.
 
 ## 3. Progress records (RUN / WIP)
 
@@ -41,7 +43,7 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 - **Reply stamp:** `notebook-write.js:render_reply` (passes `host` + `session`) → `reply-identity.js:detect_reply_identity` (Codex and, since 8.4.3, Claude transcripts).
 - **Idempotency:** `close_find_commit` / `match_closed_close` / `read_close_scope` make retries report the existing commit.
 - **Output:** JSON with `display.text` (Reply or `<notebook> updated`, per `inline-reply`).
-- **Policy:** `references/closeout.md` (manifest shape, Reply format, review requirements). Since 8.4.6 `[SUMMARY]` holds exactly one bullet per numbered `[FINAL REPORT]` item, in the same order (policy only).
+- **Policy:** `references/closeout.md` (manifest shape, Reply format, review requirements). Since 8.4.6 `[SUMMARY]` holds exactly one bullet per numbered `[FINAL REPORT]` item, in the same order (policy only). Since 8.4.10 each `[FINAL REPORT]` item starts with a verbatim quotation of the request (first 30 words); since 8.4.11 each item has one complete final answer location (the Reply, or a linked report section) (policy only).
 - **Tests:** `scripts/agf.test.js`, `scripts/notebook-write.test.js`, `scripts/close-language-journey.js`, `scripts/no-ag-closeout.test.js`, `scripts/transport-integration.test.js`.
 
 ## 5. Stop-hook referee
@@ -49,8 +51,8 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 - **Purpose:** independent end-of-turn check; block (exit 2) only when a completed round fails the linter.
 - **Entry:** `scripts/stop-hook.js:main` (installed as `node stop-hook.js --host <codex|claude>`).
 - **Core path:** resolve notebook (root or stream) → `closed-round.js:verified_closed_round` (since 8.4.7; a verified closed last round exits 0 without linting, so later working-file edits cannot revoke it) → `completion-context.js:collect` (with transcript, real clock) → `round-linter.js:lint_round` → on pass, `completion-cleanup.js:sweep_completion_records`.
-- **Guards:** `stop_hook_active` → exit 0; valid `AGENTFLOW_EXTERNAL_DELEGATE` → exit 0; fails open on internal errors.
-- **Tests:** `scripts/stop-hook.test.js`, `scripts/stop-hook-recovery.test.js`, `scripts/closed-round.test.js`, `scripts/long-round-hook-journey.js`.
+- **Guards:** `stop_hook_active` → exit 0; valid `AGENTFLOW_EXTERNAL_DELEGATE` → exit 0; current `no-ag` message → exit 0 before any notebook/config read (section 22); fails open on internal errors.
+- **Tests:** `scripts/stop-hook.test.js`, `scripts/stop-hook-recovery.test.js`, `scripts/closed-round.test.js`, `scripts/long-round-hook-journey.js`, `scripts/no-ag-hook.test.js`.
 
 ## 6. Round linter (validation rules)
 
@@ -63,10 +65,10 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 
 - **Purpose:** decide whether a separate review is required, validate review evidence, allow host fallback only under `prefer-independent`.
 - **Entry:** `scripts/agf.js:review_main`; `scripts/completion-context.js:review_decision` (internal); `scripts/round-linter.js:lint_cross_check`; `scripts/completion-record.js:validate_review_record`, `verify_review_files`; depth selector `scripts/cross-check-plan.js:select_cross_check_plan`.
-- **Waivers:** `fast-lane`, `no-ag`, exact `skip-review: <tradeoff>`.
+- **Waivers:** `fast-lane`, exact `skip-review: <tradeoff>`, bounded natural-language skip clauses. Since 8.4.12 `no-ag` is no longer a saved-round review waiver (`no_ag_review_waiver` was removed); owner text passes through `owner-control-text.js:unquoted_control_text`, so quoted (including multiline) examples cannot waive review.
 - **Review-only rounds:** `round-linter.js:review_only_intent` accepts only bounded owner controls (`review-only`/`3ways`, reviewer selection `reviewer: codex|claude` or `reviewer 用 …`, `target:`, `godev`, exact takeover continuation); quoted, unknown or mixed implementation text is rejected. `lint_cross_check` then lets a `purpose: "review-only"` record keep non-PASS verdicts while source, delivered-scope, report-integrity and independence checks still apply.
 - **Policy:** `references/closeout.md`, `references/delegation.md`.
-- **Tests:** `scripts/review-policy.test.js`, `scripts/review-only.test.js`, `scripts/review-only-journey.js`, `scripts/cross-check-plan.test.js`, `scripts/completion-record.test.js`.
+- **Tests:** `scripts/review-policy.test.js`, `scripts/review-only.test.js`, `scripts/review-only-journey.js`, `scripts/cross-check-plan.test.js`, `scripts/completion-record.test.js`, `scripts/completion-context.test.js` (quoted waiver cases), `scripts/no-ag-closeout.test.js`.
 
 ## 8. Notebook ownership
 
@@ -79,10 +81,11 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 
 ## 9. Notebook compaction
 
-- **Purpose:** archive completed rounds when notebook > 1,000 lines or ≥ 768 KiB, byte- and hash-verified.
+- **Purpose:** archive completed rounds when notebook ≥ 750 newlines (since 8.4.10; 500 in 8.4.9, > 1,000 before) or ≥ 768 KiB, byte- and hash-verified.
 - **Entry:** `scripts/notebook-compact.js:compact` (CLI `agf compact`), `compact_locked` (auto, from start/capture).
-- **Option:** `--include-answered true` to archive rounds with filled `ans:` fields.
-- **Tests:** `scripts/notebook-compact.test.js`.
+- **Retention:** selection stops at the first open round (`open-round-retained`) or the first round with a non-empty `ans:`, `-> ask:` or `-> ans:` line (`answered-round-retained`; inline forms since 8.4.11); that round and everything after it stay live. `compact_locked` returns `blocked` + `message` (the answered case adds recovery guidance), surfaced by `agf.js:start_main` and `notebook-write.js:append_input` (since 8.4.14).
+- **Option:** `--include-answered true` archives answered rounds; policy (`SKILL.md` step 6) allows it only after every retained answer/request is verified as handled.
+- **Tests:** `scripts/notebook-compact.test.js` (750-line threshold, inline markers, retention notices), `scripts/start-journey.test.js` (PTY retention notice).
 
 ## 10. Settings (`ag.json`)
 
@@ -127,15 +130,16 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 ## 15. Fast-lane
 
 - **Purpose:** keep a task with the host, waive AG/delegation/independent review, keep self-review and checks.
-- **Entry:** `scripts/fast-lane.js:parse_fast_lane`; consumers `round-linter.js:lint_round` (`workflow_check` skip), `completion-context.js:review_decision`, `stop-hook.js`.
+- **Entry:** `scripts/fast-lane.js:parse_fast_lane`; consumers `round-linter.js:lint_round` (`workflow_check` skip), `completion-context.js:review_decision`, `stop-hook.js`. `parse_task_control` blanks fenced blocks first, then quotations via `owner-control-text.js:unquoted_control_text` (multiline quotes ignored since 8.4.12).
 - **Policy:** `references/fast-lane.md`.
 - **Tests:** `scripts/fast-lane.test.js`.
 
 ## 16. Install, setup, hooks, uninstall
 
 - **Entry:** `scripts/setup.js:main` (`agf setup [--fix]`), `scripts/install-hook.js:install`, `inspect` (`agf hooks`), `scripts/agf.js:uninstall_main`, `init_main`.
+- **Hook paths (since 8.4.9/8.4.11):** `install-hook.js:installed_script_for` picks `~/.<host>/skills/agentflow/scripts/<script>`, else the other host's global copy, else the running installation (e.g. project-scoped Skills or the Claude plugin cache); `hook_command_for` and the guard command use it. `add_hook`/`remove_hook` also own any older command ending in `skills/agentflow/scripts/stop-hook.js` (`is_legacy_agentflow_command`), so startup or the installer repairs stale paths; `apply_guard` rewrites a recognized older guard (`is_our_guard`) after a backup. `stream-cleanup.js:owned_hooks` accepts the installed path too.
 - **Side effects:** edits shell rc files (with backup), `.claude/settings.json`, `.codex/hooks.json`, `.git/hooks/pre-commit`.
-- **Tests:** `scripts/setup.test.js`, `scripts/install-hook.test.js`.
+- **Tests:** `scripts/setup.test.js`, `scripts/install-hook.test.js` (installed-path selection, moved checkout, isolated layouts, PTY), `scripts/agf.test.js` (cleanup with an installed copy).
 
 ## 17. Completion records and cleanup
 
@@ -157,7 +161,7 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 ## 20. Skip-ag (added 8.4.3)
 
 - **Purpose:** skip only the development pipeline and advisors for the current Ask; keep devlog records, normal independent review, ordinary delegation, streams and closeout. Does not change `ag.json`; expires when the Ask closes. Distinct from `fast-lane` (also waives delegation/streams/independent review) and `no-ag` (skips the whole protocol).
-- **Trigger:** owner line `skip-ag [task]` or `/skip-ag [task]`; bare command = `pending` (wait for a task, no closing Reply). Quoted/fenced examples, mentions and `skip-ag: on` do not count.
+- **Trigger:** owner line `skip-ag [task]` or `/skip-ag [task]`; bare command = `pending` (wait for a task, no closing Reply). Quoted (including multiline, since 8.4.12)/fenced examples, mentions and `skip-ag: on` do not count.
 - **Entry:** `scripts/fast-lane.js:parse_skip_ag`; consumers `agf.js:insert_start_message`/`start_result`, `resume-intake.js:collect_intake` (`skip_ag`), `stop-hook.js` (UserPromptSubmit route notice), `round-linter.js:lint_round`.
 - **Linter effect:** `workflow_check` skips `large_work_route`, `queue_contract`, `security_disposition`, `acceptance_disposition`, `pipeline_artifacts`, `quality_gate`; `route_decision` fails on `selected_advisors`/`full_pipeline` and otherwise calls `lint_route_decision(..., { skip_pipeline: true })`; `skip_ag_task` fails if a pending skip-ag round has a Reply. `executor_decision` and review checks still run.
 - **Policy:** `references/skip-ag.md`; mentioned in `SKILL.md`, `references/ag.md`, `closeout.md`, `delegation.md`, `fast-lane.md`.
@@ -170,3 +174,20 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 - **Entry:** `scripts/completion-context.js:collect` reads `away-gates` from the active `ag.json` into the lint context → `scripts/round-linter.js:lint_quality_gate` treats `metadata_context['away-gates'] === 'on'` as authorization (alternative to `facts.away_gates` + exact Ask line `away: gates`), including for the renewed Design Go after a repeated concept. Since 8.4.5 a `journey.red_proven` / `green_proven` of `false` fails the gate.
 - **Policy:** `SKILL.md` (consequential work, controls list) — rule tagged I-067; `docs/AG_GUIDE.md`.
 - **Tests:** `scripts/round-linter.test.js` (`quality_gate accepts configured away-gates on ...`, `configured away-gates supplies the renewed Design Go ...`), `scripts/completion-context.test.js`, `scripts/ag-settings.test.js`, `scripts/terminal.test.js`.
+
+## 22. No-ag per-message bypass (changed 8.4.12)
+
+- **Purpose:** skip the entire host Agentflow protocol (capture, notebook/config recovery, Stop checks, closeout) for one submitted message; the next ordinary message resumes the workflow. Changes no settings.
+- **Trigger:** unquoted line-start `no-ag`, alone or followed by a task after a space, colon or comma (`no-ag fix`, `no-ag: fix`, `no-ag, fix`). Quoted (single/double/curly quotes, backticks, multiline), blockquoted, indented or HTML-comment text, and conditional forms (`no-ag if|unless|is|means ...`) do not count.
+- **Entry:** `scripts/completion-context.js:no_ag_bypass` (detector; a later `godev`/`ag` or explicit review request in the same text wins), `latest_owner_prompt`; consumer `scripts/stop-hook.js:main`.
+- **Core path:** UserPromptSubmit → `no_ag_bypass(input.prompt)` → exit 0 with no output and no notebook write. Stop → `input.prompt`, else `latest_owner_prompt(transcript_path, session_id)` (Claude user entries, Codex `response_item`/`event_msg` user turns; a different session yields `''`) → bypass → exit 0. No current input → ordinary checks. Both run before notebook/`ag.json` resolution, so a malformed config is left untouched.
+- **Removed:** the earlier saved-round `no-ag` review waiver and any cached bypass marker; the Git guard keeps its own notebook/config protection.
+- **Policy:** `SKILL.md` controls list, `references/ag.md`, `references/skip-ag.md`, `scripts/README.md` "Message controls".
+- **Tests:** `scripts/no-ag-hook.test.js`, `scripts/no-ag-closeout.test.js`; PTY journey `scripts/no-ag-hook-journey.js` (both hosts).
+
+## 23. Large mixed requests and intention tracking (policy only, 8.4.10 / 8.4.13)
+
+- **Purpose:** inventory every requested outcome of a large mixed Ask in the existing tracker (stable IDs, original wording, attached constraints, authorization, dependencies, state, answer location), carry unfinished items into the next Ask, and track possible owner intentions from discussion as pending items that grant no permission to implement.
+- **Trigger:** `SKILL.md` controls list ("Read `references/mixed-requests.md` before planning or acting on a large mixed Ask ..."); no fixed item-count threshold.
+- **Policy:** `references/mixed-requests.md`; intention tracking in `SKILL.md`; owner guides `docs/AG_GUIDE*.md`, `docs/agent-brief.md`, `README*.md`. No script enforces it beyond the existing tracker contract (`scripts/tracker-contract.js`).
+- **Tests:** no dedicated test found in this mirror.

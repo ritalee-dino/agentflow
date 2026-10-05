@@ -1,0 +1,78 @@
+#!/bin/sh
+# Agentflow pre-push guard.
+# Refuses a push when any commit being pushed contains Agentflow working files
+# (.agentflow/, root ag.json) in its tree or an Agentflow-Close-Id trailer in
+# its message. When installed in a repository-local hooks directory, it then
+# runs the global pre-push hook (global core.hooksPath) so existing rules stay.
+#
+# Install: see patch/README.md
+# Bypass once (only when you are sure): git push --no-verify
+
+remote="$1"
+# Git pathspecs checked in every pushed commit's tree.
+blocked_paths='.agentflow ag.json'
+trailer_pattern='^[[:space:]]*Agentflow-Close-Id:'
+max_listed=20
+
+# Buffer stdin so the chained global hook receives the same ref list.
+input=$(cat)
+hits=0
+listing=''
+
+# Each line: <local ref> <local sha> <remote ref> <remote sha>.
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -n "$local_sha" ] || continue
+  # An all-zero local sha deletes the remote ref and pushes no commits.
+  case "$local_sha" in *[!0]*) ;; *) continue ;; esac
+
+  # Only check commits the remote does not already have.
+  remote_known=0
+  case "$remote_sha" in *[!0]*)
+    git cat-file -e "$remote_sha^{commit}" 2>/dev/null && remote_known=1 ;;
+  esac
+  if [ "$remote_known" = 1 ]; then
+    commits=$(git rev-list "$local_sha" --not "$remote_sha" --remotes="$remote")
+  else
+    commits=$(git rev-list "$local_sha" --not --remotes="$remote")
+  fi
+
+  for commit in $commits; do
+    reason=''
+    # Paths are plain names without spaces, so word splitting is intended.
+    # shellcheck disable=SC2086
+    if [ -n "$(git ls-tree -r --name-only "$commit" -- $blocked_paths | head -n 1)" ]; then
+      reason='Agentflow files'
+    fi
+    if git log -1 --format=%B "$commit" | grep -q "$trailer_pattern"; then
+      reason="${reason:+$reason + }Agentflow-Close-Id"
+    fi
+    [ -n "$reason" ] || continue
+    hits=$((hits + 1))
+    if [ "$hits" -le "$max_listed" ]; then
+      listing="$listing
+  $(git log -1 --format='%h %s' "$commit")  [$reason] -> ${remote_ref#refs/heads/}"
+    fi
+  done
+done <<EOF
+$input
+EOF
+
+if [ "$hits" -gt 0 ]; then
+  {
+    echo "pre-push: blocked — $hits commit(s) contain .agentflow/, ag.json or an Agentflow-Close-Id trailer:"
+    printf '%s\n' "$listing"
+    [ "$hits" -le "$max_listed" ] || echo "  ... and $((hits - max_listed)) more"
+    echo
+    echo "Create a clean branch without Agentflow history first, for example:"
+    echo "  sh clean-branch.sh <work-branch>"
+  } >&2
+  exit 1
+fi
+
+# Chain to the global pre-push hook unless this file already is that hook.
+global_dir=$(git config --global --type=path --get core.hooksPath 2>/dev/null) || exit 0
+[ -f "$global_dir/pre-push" ] || exit 0
+own_dir=$(cd "$(dirname "$0")" && pwd -P)
+next_dir=$(cd "$global_dir" 2>/dev/null && pwd -P) || exit 0
+[ "$own_dir" != "$next_dir" ] || exit 0
+printf '%s\n' "$input" | sh "$next_dir/pre-push" "$@"

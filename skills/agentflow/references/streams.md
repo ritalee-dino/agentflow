@@ -18,7 +18,7 @@ Triggers are `new-feature: <name>`, plain feature-starting words, parallel-work 
 
 Revalidate adjacent `ag.json` first. `streams: always` proceeds for plain feature/parallel triggers; `ask` batches the same question; `off` reports the signal but neither asks to open a stream nor opens one. `off` does not remove path-ownership or concurrent-work safety rules. Explicit `new-feature:` is always immediate authorization.
 
-`new-feature:` runs exactly `agf new "<name>" [taskkey]`. The CLI validates config, creates the worktree, copies stream configuration, writes STATUS, commits stream-open files, pushes when a remote exists, and leaves the owner in the worktree. It never writes the configured main notebook; the agent adds at most one main-notebook pointer. If `agf` is unavailable, report it and stop; do not substitute manual Git.
+`new-feature:` runs exactly `agf new "<name>" [taskkey]`. The CLI validates config, creates the worktree, copies stream configuration, writes STATUS, commits stream-open files, pushes when a remote exists and `stream-auto-push` is on, and leaves the owner in the worktree. It never writes the configured main notebook; the agent adds at most one main-notebook pointer. If `agf` is unavailable, report it and stop; do not substitute manual Git.
 
 After opening, tell the owner to exit and run the shell-quoted absolute continuation command from the CLI result. If no work request followed the feature name, close the stream-open round with an empty Ask scaffold; do not invent work. A plain notebook-only request creates one stream file plus its root pointer, without branching; never offer it instead of `new-feature:` for code work.
 
@@ -38,20 +38,22 @@ Every worktree is `.worktrees/<taskkey>` inside the repository and is ignored by
 
 Run only in the matching stream worktree; elsewhere report nothing to merge. The exact sequence is:
 
-1. `agf finish --prep [taskkey]` integrates the default branch into the stream, aborts conflicts, pushes the stream when a remote exists, and stops before delivery.
-2. Write the stream closing Reply, set STATUS to closed, replace the active state with `Feature: <taskkey> — closed`, commit that record, and push it when a remote exists. The notebook must be tracked at the clean stream HEAD and the remote branch must equal it.
-3. `agf finish --deliver [taskkey]` captures that immutable commit, verifies the main checkout is on the default branch, fetches, and fast-forwards locally and remotely when applicable. It refuses untracked/ignored paths that delivery would replace, and reports partial/rejected outcomes with recovery text.
+1. `agf finish --prep [taskkey]` integrates the default branch into the stream, aborts conflicts, pushes the stream when a remote exists and `stream-auto-push` is on, and stops before delivery.
+2. Write the stream closing Reply, set STATUS to closed, replace the active state with `Feature: <taskkey> — closed`, and commit that record. Push it only when a remote exists and `stream-auto-push` is on. The notebook must be tracked at the clean stream HEAD; only push-enabled streams require the remote branch to equal it.
+3. `agf finish --deliver [taskkey]` captures that immutable commit, verifies the main checkout is on the default branch, and fast-forwards locally. With `stream-auto-push` on and a remote present, it also fetches and updates the remote default branch. It refuses untracked/ignored paths that delivery would replace, and reports partial/rejected outcomes with recovery text.
 
 If step 1 reports a merge conflict, it has already run `git merge --abort`; no half-merged state remains. Recover in this order:
 
 1. Stay in the stream worktree and inspect the default-branch changes that conflict with the stream.
 2. Reconcile those changes on the stream branch by editing or otherwise integrating the intended result, then commit the resolved stream state.
 3. Run `agf finish --prep [taskkey]` again. Do not continue while it still reports a conflict.
-4. After preparation succeeds, write and commit the closed stream notebook, push it when a remote exists, and run `finish --deliver` as step 3 above.
+4. After preparation succeeds, write and commit the closed stream notebook, push it only when a remote exists and `stream-auto-push` is on, and run `finish --deliver` as step 3 above.
 
 Do not run `git merge --continue` after the refusal because the CLI aborted that merge. Do not skip directly to delivery.
 
 The delivery lock is exclusive, records process/repository/worktree/task/start/token facts, and releases only when pathname and token identity still match. It serializes Agentflow delivery, not manual Git. Without a remote, report the local-only result; do not call it a sandbox limit.
+
+With `stream-auto-push: off`, use local delivery in every stream closeout. Do not pass a push manifest to `agf close`; it rejects that mode for the stream. Manual Git pushes remain an owner action and do not change the setting.
 
 After success, give the owner the CLI's copy-ready command to exit and return to the main checkout. Cleanup is separate.
 
@@ -62,6 +64,8 @@ Run `agf cleanup <taskkey>` from the main checkout. It merges, deletes the branc
 The resolved main checkout must be on the default branch. The key must match exactly one stream pointer, folder, worktree, or branch; no match, ambiguity, branch-without-stream, or stream-without-branch stops with facts and no guess.
 
 Cleanup does not need a force option for Finder `.DS_Store` files, the target stream's Agentflow input/close receipts, released ownership and completion records, or local hook files containing only the current Agentflow hooks. Before Git removes the worktree, it copies these recognized files byte-for-byte into a new private `agentflow-cleanup/<taskkey>-<unique>/` directory inside the shared Git directory and prints its absolute path. The copy keeps the original relative paths; it is local recovery storage, not a pushed artifact or a new ownership claim. To recheck saved completion evidence later, restore the corresponding completion record/reference pair to its original workspace-relative location beside the retained notebook, without overwriting different existing records. Do not restore old ownership files as live ownership in another checkout.
+
+When the stream's adjacent setting is `stream-auto-push: off`, cleanup merges and removes only local refs and the worktree. It may fetch and inspect origin for divergence, but leaves the remote default and feature refs untouched. The confirmed `agf ditch` also leaves any remote feature ref untouched. Without the worktree, the setting comes from the configuration committed on the stream branch. A stream record whose configuration cannot be read stops cleanup and ditch before any change. Report retained remote refs clearly; do not describe the local result as remotely published.
 
 Tracked changes, unknown untracked/ignored files, mixed host settings, symbolic links, active ownership, notebook locks, failed preservation and files changed during cleanup still stop removal. Recovery copies are retained even if a later removal step fails; existing copies are never overwritten. Exit the target host before cleanup, including when it has already released its last completed Ask. This command does not detect every unrelated operating-system process using that directory.
 

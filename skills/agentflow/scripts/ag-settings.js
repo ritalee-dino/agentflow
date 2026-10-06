@@ -29,8 +29,8 @@ const pipeline_role_defaults = Object.freeze({
 	learn: 'basic',
 	threeways: 'better',
 })
-const switch_names = Object.freeze(['target-doc', 'workspace-dir', 'cli-provider', 'auto-reply', 'away-gates', 'log-verbosity', 'inline-reply', 'notebook-ownership', 'lang', 'streams', 'ask-names', 'allow-ag', 'large-work-minutes', 'git-timeout-ms', 'allowed-worker', 'review-policy', 'completion-cleanup', 'completion-cleanup-interval-days'])
-const optional_switch_names = Object.freeze(['completion-cleanup', 'completion-cleanup-interval-days', 'log-verbosity', 'inline-reply', 'notebook-ownership', 'git-timeout-ms', 'away-gates'])
+const switch_names = Object.freeze(['target-doc', 'workspace-dir', 'cli-provider', 'auto-reply', 'away-gates', 'log-verbosity', 'inline-reply', 'notebook-ownership', 'lang', 'streams', 'stream-auto-push', 'ask-names', 'allow-ag', 'large-work-minutes', 'git-timeout-ms', 'allowed-worker', 'review-policy', 'completion-cleanup', 'completion-cleanup-interval-days'])
+const optional_switch_names = Object.freeze(['completion-cleanup', 'completion-cleanup-interval-days', 'log-verbosity', 'inline-reply', 'notebook-ownership', 'git-timeout-ms', 'away-gates', 'stream-auto-push'])
 const legacy_switch_names = Object.freeze(['metrics'])
 const completion_cleanup_defaults = Object.freeze({ 'completion-cleanup': 'off', 'completion-cleanup-interval-days': 7 })
 const notebook_control_defaults = Object.freeze({ 'log-verbosity': 'all', 'inline-reply': 'off', 'notebook-ownership': 'off' })
@@ -179,6 +179,7 @@ const host_template_values = {
       'notebook-ownership': notebook_control_defaults['notebook-ownership'],
       'review-policy': 'prefer-independent',
       streams: 'ask',
+      'stream-auto-push': 'on',
       'target-doc': '.agentflow/devlog.md',
       'workspace-dir': '.agentflow',
     },
@@ -229,6 +230,7 @@ const host_template_values = {
       'notebook-ownership': notebook_control_defaults['notebook-ownership'],
       'review-policy': 'prefer-independent',
       streams: 'ask',
+      'stream-auto-push': 'on',
       'target-doc': '.agentflow/devlog.md',
       'workspace-dir': '.agentflow',
     },
@@ -672,6 +674,7 @@ const validate_switches = (config, options, expected_switches, provider_values, 
 		'inline-reply': ['on', 'off'],
 		'notebook-ownership': ['on', 'off'],
 		streams: ['ask', 'always', 'off'],
+		'stream-auto-push': ['on', 'off'],
 		'ask-names': ['on', 'off'],
 		'allow-ag': ['on', 'off', 'ask'],
 		'review-policy': ['prefer-independent', 'require-independent'],
@@ -950,6 +953,17 @@ const duplicate_json_key = text => {
 	try { return read_value() } catch (error) { return null }
 }
 
+// Strict read-only view of a stream's push switch: no host detection,
+// migration or repair. Unset means on; unreadable configuration throws.
+const stream_auto_push_from_text = (text, label, repo_root) => {
+	if (duplicate_json_key(text) !== null) throw new SettingsError(`stream configuration ${label} contains duplicate keys`)
+	let config
+	try { config = JSON.parse(text) } catch (error) { throw new SettingsError(`stream configuration ${label} is not valid JSON: ${error.message}`) }
+	const validation = validate_config(config, { repo_root, check_executables: false })
+	if (!validation.valid) throw new SettingsError(`stream configuration ${label} is invalid: ${validation.errors.join('; ')}`)
+	return config.switches['stream-auto-push'] !== 'off'
+}
+
 const read_json_config = (config_path, options = {}) => {
 	let text
 	try {
@@ -1042,6 +1056,7 @@ const canonical_config = config => ({
 		...Object.fromEntries(Object.keys(notebook_control_defaults).filter(key => has_own(config.switches, key)).map(key => [key, config.switches[key]])),
 		lang: config.switches.lang,
 		streams: config.switches.streams,
+		...(has_own(config.switches, 'stream-auto-push') ? { 'stream-auto-push': config.switches['stream-auto-push'] } : {}),
 		'ask-names': config.switches['ask-names'],
 		'allow-ag': config.switches['allow-ag'],
 		'large-work-minutes': config.switches['large-work-minutes'],
@@ -2001,7 +2016,7 @@ const render_dispatch_substitution = format_dispatch_substitution
 const switch_display_value = (config, key) => {
 	if (Array.isArray(config.switches[key])) return JSON.stringify(config.switches[key])
 	if (has_own(config.switches, key)) return config.switches[key]
-	return completion_cleanup_defaults[key] ?? notebook_control_defaults[key] ?? (key === 'away-gates' ? 'off' : key === 'git-timeout-ms' ? git_timeout_default_ms : config.switches[key])
+	return completion_cleanup_defaults[key] ?? notebook_control_defaults[key] ?? (key === 'stream-auto-push' ? 'on' : key === 'away-gates' ? 'off' : key === 'git-timeout-ms' ? git_timeout_default_ms : config.switches[key])
 }
 
 const format_settings_display = (config, options = {}) => {
@@ -2039,6 +2054,7 @@ const format_settings_display = (config, options = {}) => {
 		'- notebook-ownership: on or off (default off); on protects each Ask from other sessions; off retains file locks but allows mixed session work; use notebook-ownership: <value>',
 		'- lang: non-empty language tag or existing language name; use lang: <value>',
 		'- streams: ask, always, or off; use streams: <value>',
+		'- stream-auto-push: on or off (default on); controls Agentflow pushes for feature streams; use stream-auto-push: <value>',
 		'- ask-names: on or off; use ask-names: <value>',
 		'- allow-ag: on, off, or ask; use allow-ag: <value>',
 		'- large-work-minutes: integer from 1 through 10080; use large-work-minutes: <value>',
@@ -2188,6 +2204,7 @@ module.exports = {
 	configured_git_timeout_ms,
 	display_path,
 	duplicate_json_key,
+	stream_auto_push_from_text,
 	read_json_config,
 	load_config,
 	read_config,

@@ -2354,6 +2354,26 @@ const lint_suite_evidence = value => {
   return null;
 };
 
+// A stream's own `stream-auto-push: off` makes push evidence inapplicable even
+// with a remote. Read it from the notebook's adjacent ag.json, never from a host
+// claim; any doubt keeps push evidence required.
+const stream_push_disabled = (facts, context) => {
+  const project_root = context.project_root || context.cwd;
+  const notebook = facts.devlog_path ?? facts.notebook_path;
+  if (!nonempty_text(project_root) || !nonempty_text(notebook)) return false;
+  try {
+    const root = node_path.resolve(project_root);
+    const relative = node_path.relative(root, node_path.resolve(root, notebook));
+    if (relative.startsWith('..') || node_path.isAbsolute(relative)) return false;
+    const folder = node_path.basename(node_path.dirname(relative));
+    if (node_path.basename(relative) !== `${folder}.devlog.md`) return false;
+    const config_path = node_path.join(root, node_path.dirname(relative), 'ag.json');
+    return !ag_settings.stream_auto_push_from_text(node_fs.readFileSync(config_path, 'utf8'), config_path, root);
+  } catch {
+    return false;
+  }
+};
+
 const lint_direct_route_completion = (facts, context) => {
   if (!direct_context_supplied(context)) {
     return make_check('direct_route_completion', 'Direct executable work has complete evidence', 'skip', 'direct-route completion facts were not provided');
@@ -2414,8 +2434,9 @@ const lint_direct_route_completion = (facts, context) => {
     if (typeof remote_configured !== 'boolean') {
       errors.push('remote_configured must be supplied as a host fact');
     } else if (remote_configured === true) {
-      const pushes = facts.push_results;
-      if (!Array.isArray(pushes) || pushes.length === 0) {
+      const push_disabled = stream_push_disabled(facts, context);
+      const pushes = facts.push_results === undefined && push_disabled ? [] : facts.push_results;
+      if (!Array.isArray(pushes) || (pushes.length === 0 && !push_disabled)) {
         errors.push('a configured remote requires push_results');
       } else if (pushes.some(result => result === null || typeof result !== 'object' || (result.exit_code !== 0 && result.success !== true))) {
         errors.push('every configured push result must prove success');

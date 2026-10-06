@@ -98,6 +98,8 @@ Paths are relative to `skills/agentflow/` unless they start with `docs/` or `.`.
 
 ## 11. Streams (feature worktrees)
 
+`stream-auto-push` (unreleased) is an optional on/off switch, default on. `ag-settings.js` validates, preserves and displays it. `agf.js:stream_auto_push` reads the stream-adjacent configuration; off suppresses remote mutations during new, finish prep/deliver, close, cleanup and ditch. Without a worktree it reads the configuration committed on the stream branch, then a delivered or remote-tracking copy; an unreadable stream record refuses cleanup/ditch, and a key with no stream record keeps the unset default. `round-linter.js:stream_push_disabled` waives direct-route push results only after reading an off stream configuration itself. Main-workspace closeout remains unchanged; cleanup/ditch retain remote inspection and safety checks. Tests: `ag-settings.test.js`, `agf.test.js` stream-auto-push cases and `round-linter.test.js` direct-route stream push case.
+
 - **Purpose:** isolate a feature on a branch in `.worktrees/<taskkey>` with its own notebook + `ag.json`.
 - **Triggers:** `new-feature: <name>`, `merge-back`, `cleanup:<taskkey>`; `resume-intake.js:stream_decision` returning `foreign_or_parallel_work`.
 - **Entry:** `scripts/agf.js:new_main`, `finish_main` (`--prep`, `--deliver`), `clean_main` (aliases `clean`, `merge`), `ditch_main`; helpers `devlog_template`, `stream_doc`, `acquire_delivery_lock`; `scripts/stream-cleanup.js:inspect`, `preserve`; `scripts/default-branch.js:resolve_default_branch`; guard `scripts/devlog-guard.js:verdict`.

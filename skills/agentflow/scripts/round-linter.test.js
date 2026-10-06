@@ -3513,6 +3513,45 @@ node_test.test('direct executable work requires red-first, focused, suite, Git, 
   node_assert.strictEqual(status_for(complete, 'direct_route_completion')?.status, 'pass');
 });
 
+node_test.test('direct-route push evidence follows the stream notebook setting, not a host claim', () => {
+  const root = node_fs.mkdtempSync(node_path.join(node_os.tmpdir(), 'round-linter-stream-push-'));
+  try {
+    const settings = require('./ag-settings.js');
+    const write_config = (relative, notebook, value) => {
+      const config = settings.make_template('codex');
+      config.switches['target-doc'] = notebook;
+      if (value === undefined) delete config.switches['stream-auto-push'];
+      else config.switches['stream-auto-push'] = value;
+      node_fs.mkdirSync(node_path.dirname(node_path.join(root, relative)), { recursive: true });
+      node_fs.writeFileSync(node_path.join(root, relative), `${JSON.stringify(config, null, 2)}\n`);
+      node_fs.writeFileSync(node_path.join(root, notebook), '# notebook\n');
+    };
+    const stream_notebook = '.agentflow/features/login-page/login-page.devlog.md';
+    const lint_push = (devlog_path, overrides = {}) => status_for(lint_round({
+      devlog_text: reporting_substantial_devlog(),
+      project_root: root,
+      direct_route: reporting_direct_route_facts({ devlog_path, remote_configured: true, ...overrides })
+    }), 'direct_route_completion');
+
+    write_config('.agentflow/features/login-page/ag.json', stream_notebook, 'off');
+    node_assert.strictEqual(lint_push(stream_notebook).status, 'pass');
+    node_assert.strictEqual(lint_push(stream_notebook, { push_results: [] }).status, 'pass');
+    node_assert.strictEqual(lint_push(stream_notebook, { push_results: [{ exit_code: 1 }] }).status, 'fail');
+    node_assert.match(lint_push(stream_notebook, { push_results: 'none' }).detail, /requires push_results/);
+
+    write_config('.agentflow/features/login-page/ag.json', stream_notebook, undefined);
+    node_assert.match(lint_push(stream_notebook).detail, /requires push_results/);
+
+    node_fs.writeFileSync(node_path.join(root, '.agentflow/features/login-page/ag.json'), '{"switches": ');
+    node_assert.match(lint_push(stream_notebook).detail, /requires push_results/);
+
+    write_config('ag.json', 'devlog.md', 'off');
+    node_assert.match(lint_push('devlog.md').detail, /requires push_results/);
+  } finally {
+    node_fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 node_test.test('separates behavior, evidence-origin, and cosmetic record defects', () => {
   const result = lint_round({
     devlog_text: devlog_with_ask('A-001'),

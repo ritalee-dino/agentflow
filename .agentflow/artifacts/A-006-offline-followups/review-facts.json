@@ -1,0 +1,12 @@
+{
+  "changed_files": [
+    "skills/agentflow/SKILL.md",
+    "skills/agentflow/scripts/agf.js",
+    "skills/agentflow/scripts/agf.test.js"
+  ],
+  "changed_lines": 30,
+  "behavior_change": true,
+  "trust_boundary": false,
+  "broad_change": false,
+  "consequential_change": false
+}

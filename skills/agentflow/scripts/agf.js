@@ -2241,7 +2241,9 @@ const clean_main = (argv, cwd, log, ask, width = 80) => {
 		log(`local branch ${key} does not exist, and stream-auto-push is off, so cleanup will not fetch it — nothing was changed`)
 		log(last_fetched_tip(repo, key)
 			? `create it from the last fetch, then run agf cleanup again:  git branch ${key} origin/${key}`
-			: `fetch it yourself, then run agf cleanup again:  git fetch origin ${key}:${key}`)
+			: git(repo, ['remote']).out.split('\n').includes('origin')
+				? `fetch it yourself, then run agf cleanup again:  git fetch origin ${key}:${key}`
+				: `no origin is configured, so there is no other copy of ${key} to restore`)
 		return 1
 	}
 	const local_tip_before = git(repo, ['rev-parse', '--verify', `refs/heads/${def}`])

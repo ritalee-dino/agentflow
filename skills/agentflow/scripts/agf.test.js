@@ -1933,6 +1933,30 @@ test('stream-auto-push off refuses cleanup without a local feature branch and ex
 	} finally { drop(dir, bare) }
 })
 
+test('stream-auto-push off without origin does not suggest fetching a missing feature branch', () => {
+	const { dir, run } = make_repo()
+	try {
+		const config_file = path.join(dir, 'ag.json')
+		const config = JSON.parse(fs.readFileSync(config_file, 'utf8'))
+		config.switches['stream-auto-push'] = 'off'
+		fs.writeFileSync(config_file, `${JSON.stringify(config, null, 2)}\n`)
+		run(['add', 'ag.json'])
+		run(['commit', '-m', 'disable stream auto push'])
+		const wt = open_stream(dir, 'login page')
+		commit_stream_file(run, wt, 'feature.txt', 'feature\n')
+		close_local_stream(run, wt, 'login-page')
+		const first = []
+		assert.equal(path.resolve(agf.main(['cleanup', 'login-page'], dir, message => first.push(message)).dir), dir, first.join('\n'))
+		const main_before = run(['rev-parse', 'main'])
+		const logs = []
+		assert.equal(agf.main(['cleanup', 'login-page'], dir, message => logs.push(message)), 1)
+		assert.ok(logs.some(message => message.includes('nothing was changed')), logs.join('\n'))
+		assert.ok(logs.some(message => message.includes('no origin is configured')), logs.join('\n'))
+		assert.ok(!logs.some(message => message.includes('git fetch')), logs.join('\n'))
+		assert.equal(run(['rev-parse', 'main']), main_before)
+	} finally { drop(dir) }
+})
+
 test('stream-auto-push off warns from the last fetch without blocking cleanup', () => {
 	const { dir, run, bare } = make_repo({ remote: true })
 	try {

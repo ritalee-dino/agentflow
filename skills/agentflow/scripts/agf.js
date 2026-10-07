@@ -1063,6 +1063,12 @@ const stream_auto_push = (dir, key) => {
 	return true
 }
 
+// The main checkout follows the configuration of the notebook it closes; no file means on.
+const main_auto_push = (repo, notebook) => {
+	const file = ag_settings.active_config_path(repo, notebook)
+	return fs.existsSync(file) ? ag_settings.stream_auto_push_from_text(fs.readFileSync(file, 'utf8'), file, repo) : true
+}
+
 const stream_push_setting = (dir, key) => {
 	try { return { auto_push: stream_auto_push(dir, key) } }
 	catch (error) { return { error: `cannot determine stream-auto-push for "${key}": ${error.message}` } }
@@ -2079,14 +2085,12 @@ const branch_tip = (repo, key) => {
 	return fields[2] ? null : fields[1]
 }
 
-const deletion_remote = (repo, push_required = true) => {
+// With stream-auto-push off, cleanup and ditch never call this and stay offline.
+const deletion_remote = (repo) => {
 	const remotes = git(repo, ['remote'])
 	if (!remotes.ok) return { error: 'could not inspect configured remotes' }
 	if (!remotes.out) return { url: '' }
 	const fetch = git(repo, ['remote', 'get-url', '--all', 'origin'])
-	if (!push_required) return fetch.ok && fetch.out && !fetch.out.includes('\n')
-		? { url: fetch.out }
-		: { error: 'origin must have one fetch destination before inspecting branches' }
 	const push = git(repo, ['remote', 'get-url', '--push', '--all', 'origin'])
 	if (!fetch.ok || !push.ok || !fetch.out || fetch.out.includes('\n') || fetch.out !== push.out) {
 		return { error: 'origin must have one identical fetch and push destination before deleting branches' }
@@ -2101,6 +2105,12 @@ const server_tip = (repo, url, key) => {
 	if (!result.out) return ''
 	const fields = result.out.split(/\s+/u)
 	return fields.length === 2 && fields[1] === `refs/heads/${key}` && /^[0-9a-f]{40,64}$/.test(fields[0]) ? fields[0] : null
+}
+
+// Offline view of origin: the tip recorded by the last fetch, or '' when none is cached.
+const last_fetched_tip = (repo, branch) => {
+	const cached = git(repo, ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${branch}^{commit}`])
+	return cached.ok ? cached.out : ''
 }
 
 const deletion_worktree = (repo, key, wt, allow_present) => {
@@ -2219,13 +2229,21 @@ const clean_main = (argv, cwd, log, ask, width = 80) => {
 		return 1
 	}
 
-	const destination = deletion_remote(repo, auto_push)
+	// stream-auto-push off: no fetch, ls-remote or push; only local refs and the last-fetch cache.
+	const destination = auto_push ? deletion_remote(repo) : { url: '' }
 	if (destination.error) { log(`${destination.error} — nothing was changed`); return 1 }
 	const has_remote = Boolean(destination.url)
 	const worktree_before = deletion_worktree(repo, key, wt, true)
 	if (worktree_before.error) { log(worktree_before.error); return 1 }
 	const feature_tip = branch_tip(repo, key)
 	if (feature_tip === null) { log('could not inspect the local feature branch'); return 1 }
+	if (!auto_push && !feature_tip) {
+		log(`local branch ${key} does not exist, and stream-auto-push is off, so cleanup will not fetch it — nothing was changed`)
+		log(last_fetched_tip(repo, key)
+			? `create it from the last fetch, then run agf cleanup again:  git branch ${key} origin/${key}`
+			: `fetch it yourself, then run agf cleanup again:  git fetch origin ${key}:${key}`)
+		return 1
+	}
 	const local_tip_before = git(repo, ['rev-parse', '--verify', `refs/heads/${def}`])
 	const remote_tip_before = has_remote
 		? git(repo, ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${def}`])
@@ -2237,6 +2255,15 @@ const clean_main = (argv, cwd, log, ask, width = 80) => {
 	if (!local_tip_before.ok) {
 		log(`could not snapshot local ${def} before cleanup — nothing was changed`)
 		return 1
+	}
+	if (!auto_push) {
+		// A reminder only: the cache can be stale, so it never blocks cleanup.
+		for (const [branch, tip] of [[def, local_tip_before.out], [key, feature_tip]]) {
+			const cached = last_fetched_tip(repo, branch)
+			if (cached && !git(repo, ['merge-base', '--is-ancestor', cached, tip]).ok) {
+				log(`warning: according to the last fetch, origin/${branch} has commits that local ${branch} does not include; cleanup continues without fetching them`)
+			}
+		}
 	}
 
 	// Step 1 — level the default branch with the server.
@@ -2351,7 +2378,7 @@ const clean_main = (argv, cwd, log, ask, width = 80) => {
 		}
 		log(`pushed ${def} to origin`)
 	} else {
-		log(has_remote ? 'stream-auto-push is off — the merge remains local' : 'no remote configured — nothing pushed')
+		log(auto_push ? 'no remote configured — nothing pushed' : 'stream-auto-push is off — the merge remains local')
 	}
 
 	// Step 4 — sweep, each step refusing rather than destroying.
@@ -2405,7 +2432,7 @@ const clean_main = (argv, cwd, log, ask, width = 80) => {
 	if (has_local) {
 		if (!delete_local_tip(repo, key, feature_tip, log)) return 1
 	}
-	if (has_remote && !auto_push) log(`remote branches were left unchanged${remote_feature_tip_after ? `; origin/${key} remains` : ''}`)
+	if (!auto_push && last_fetched_tip(repo, key)) log(`remote branches were left unchanged; according to the last fetch, origin/${key} remains`)
 
 	// Step 5 — the one thing a shell cannot do.
 	const doc = stream_doc(repo, key)
@@ -2465,7 +2492,7 @@ const ditch_main = (argv, cwd, log, ask = ask_tty, width = 80) => {
 	if (push_setting.error) { log(`${push_setting.error} — nothing was changed`); return 1 }
 	const auto_push = push_setting.auto_push
 	if (real_path(top.out) === real_path(wt)) { log('exit this stream session and run ditch from the main project folder'); return 1 }
-	const destination = deletion_remote(repo, auto_push)
+	const destination = auto_push ? deletion_remote(repo) : { url: '' }
 	if (destination.error) { log(`${destination.error} — nothing was changed`); return 1 }
 	const snapshot = discard_snapshot(repo, key, wt, destination.url)
 	if (snapshot.error) { log(`${snapshot.error} — nothing was changed`); return 1 }
@@ -2513,7 +2540,7 @@ const ditch_main = (argv, cwd, log, ask = ask_tty, width = 80) => {
 	if (has_local) {
 		if (!delete_local_tip(repo, key, snapshot.local, log)) return 1
 	}
-	if (has_remote_branch && !auto_push) log(`stream-auto-push is off — origin/${key} was left unchanged`)
+	if (!auto_push && last_fetched_tip(repo, key)) log(`stream-auto-push is off — origin/${key} was left unchanged (still present according to the last fetch)`)
 
 	const doc = stream_doc(repo, key)
 	if (doc) log(`the notebook ${doc} is already on ${def || 'the main line'} and stays — remove it by hand if you want it gone`)
@@ -2654,8 +2681,8 @@ const close_main = (argv, cwd, log, _ask, _width = 80) => {
 		validated = close_validate_manifest(manifest, repo)
 		result = close_result({ manifest, close_id: validated.close_id })
 		const stream_key = key_from_path(repo)
-		if (manifest.delivery.mode === 'push' && stream_key && !stream_auto_push(repo, stream_key)) {
-			set_close_error(result, 'stream_auto_push_disabled', 'stream-auto-push is off for this stream', 'use local delivery or explicitly change the stream setting before retrying')
+		if (manifest.delivery.mode === 'push' && !(stream_key ? stream_auto_push(repo, stream_key) : main_auto_push(repo, manifest.notebook))) {
+			set_close_error(result, 'stream_auto_push_disabled', `stream-auto-push is off for this ${stream_key ? 'stream' : 'project'}`, 'use local delivery or explicitly change the setting before retrying')
 			return { json: result, exitCode: 1 }
 		}
 		if (manifest.delivery.mode === 'push' && !args.push_authorized) {

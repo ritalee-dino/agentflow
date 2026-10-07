@@ -166,7 +166,7 @@ Read `references/progress.md` before decomposing work, recording a material resu
 
 - Read `references/closeout.md` in full before deciding review requirements, requesting review, preparing the final Reply, or closing a round. It owns the exact manifest, STATUS, review classification and waivers, host gate, and record-only completion checks. Do not load it for activation alone.
 
-- In a Git repository, commit each meaningful unit and push when a remote exists, except when the active stream has `stream-auto-push: off`. Before the first pushed commit, fetch and inspect `HEAD..origin/<branch>`. Never force-push. Preserve unrelated changes and never stash, clean, revert, or commit another session's work.
+- In a Git repository, commit each meaningful unit and push when a remote exists, except when the active config has `stream-auto-push: off`. Before the first pushed commit, fetch and inspect `HEAD..origin/<branch>`. Never force-push. Preserve unrelated changes and never stash, clean, revert, or commit another session's work.
 
 - After successful Reply, closeout, and required push, use the successful close result’s `display.text`: with `inline-reply: off` (default), output only `<target-doc path relative to the main checkout root> updated`; with `on`, display the saved Reply. Always keep the substantive answer in the notebook but do not repeat same content if a report had been written. During work, output short status updates.
 

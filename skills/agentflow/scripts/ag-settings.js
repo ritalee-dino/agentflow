@@ -2054,7 +2054,7 @@ const format_settings_display = (config, options = {}) => {
 		'- notebook-ownership: on or off (default off); on protects each Ask from other sessions; off retains file locks but allows mixed session work; use notebook-ownership: <value>',
 		'- lang: non-empty language tag or existing language name; use lang: <value>',
 		'- streams: ask, always, or off; use streams: <value>',
-		'- stream-auto-push: on or off (default on); controls Agentflow pushes for feature streams; use stream-auto-push: <value>',
+		'- stream-auto-push: on or off (default on); controls Agentflow fetches and pushes for streams and main closeout; use stream-auto-push: <value>',
 		'- ask-names: on or off; use ask-names: <value>',
 		'- allow-ag: on, off, or ask; use allow-ag: <value>',
 		'- large-work-minutes: integer from 1 through 10080; use large-work-minutes: <value>',

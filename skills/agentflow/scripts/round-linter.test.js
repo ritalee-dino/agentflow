@@ -3513,7 +3513,7 @@ node_test.test('direct executable work requires red-first, focused, suite, Git, 
   node_assert.strictEqual(status_for(complete, 'direct_route_completion')?.status, 'pass');
 });
 
-node_test.test('direct-route push evidence follows the stream notebook setting, not a host claim', () => {
+node_test.test('direct-route push evidence follows the notebook configuration setting, not a host claim', () => {
   const root = node_fs.mkdtempSync(node_path.join(node_os.tmpdir(), 'round-linter-stream-push-'));
   try {
     const settings = require('./ag-settings.js');
@@ -3546,6 +3546,10 @@ node_test.test('direct-route push evidence follows the stream notebook setting, 
     node_assert.match(lint_push(stream_notebook).detail, /requires push_results/);
 
     write_config('ag.json', 'devlog.md', 'off');
+    node_assert.strictEqual(lint_push('devlog.md').status, 'pass');
+    node_assert.strictEqual(lint_push('devlog.md', { push_results: [{ exit_code: 1 }] }).status, 'fail');
+
+    write_config('ag.json', 'devlog.md', 'on');
     node_assert.match(lint_push('devlog.md').detail, /requires push_results/);
   } finally {
     node_fs.rmSync(root, { recursive: true, force: true });

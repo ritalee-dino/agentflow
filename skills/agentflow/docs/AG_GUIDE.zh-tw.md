@@ -179,7 +179,7 @@ away: gates
 
 5. 回到主專案後，可用 `cleanup:login-page` 移除已完成的暫存分支和資料夾，筆記與工作文件會留下。尚未交付的工作可能會先被合併。若確定要放棄尚未合併的工作，才使用需要確認的 `agf ditch login-page`。
 
-若這個功能工作區要全程只留在本機，建立前在主專案設定 `stream-auto-push: off`。新工作區會複製這項設定；之後可在該工作區單獨調整。關閉時，建立、每輪提交、交付、cleanup 與 ditch 都不會更新遠端。若需發布，請自行執行 Git push。
+若這個功能工作區要全程只留在本機，建立前在主專案設定 `stream-auto-push: off`。新工作區會複製這項設定；之後可在該工作區單獨調整。關閉時，建立、每輪提交、交付、cleanup 與 ditch 都不會擷取、查詢或推送遠端，所以離線或伺服器拒絕存取時也能完成。若需發布，請自行執行 Git push。
 
 沒有 Git 也能做一般筆記工作。非程式的獨立對話筆記可以不建立分支，但 `new-feature:` 建立功能工作區時需要 Git。工作區也不等於安全沙箱。
 
@@ -219,7 +219,7 @@ away: gates
 
 - **功能工作區：** `streams: ask|always|off` 控制一般要求開新功能工作區時，是否先詢問、自動建立，或只提示而不建立。明確的 `new-feature:` 仍會直接提出建立要求。
 
-- **功能工作區推送：** `stream-auto-push: on|off` 預設為 `on`。`off` 讓功能工作區的完整流程只修改本機 Git；主工作區的提交與推送規則不受影響。
+- **功能工作區推送：** `stream-auto-push: on|off` 預設為 `on`。`off` 讓功能工作區的完整流程只修改本機 Git；設在主專案時，主工作區的 closeout 也只在本機提交、不推送。
 
 - **協作政策：** `allowed-worker: ["external", "internal", "host"]` 是沒有順序意義的 JSON 權限清單。host 會依每項工作的情境、交接成本、可用的平行工作、能力和 owner 限制，選擇符合條件的允許 kind，並記錄簡短理由。若有多個符合條件的 kind，且尚未提供 host 的選擇，selector 會回傳 `selection-required` 和可選方案，讓 host 自行選擇；若只有一個符合條件的 kind，系統可以直接選用。`external` 使用已檢查的指令配方，`internal` 把凍結的 brief 交給目前助理真正提供的 native tool，`host` 直接由目前工作階段執行。新專案預設三者都可用；v7 遷移會先保留 `["external", "host"]`，直到你明確選擇新政策。
 

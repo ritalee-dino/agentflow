@@ -1327,19 +1327,21 @@ test('authorized push fetches and verifies a local remote without force', () => 
 	}
 })
 
-test('stream-auto-push off does not disable main-workspace push closeout', () => {
+test('stream-auto-push off rejects main-workspace push closeout before mutation', () => {
 	const fixture = close_fixture({ remote: true, stream_auto_push: 'off' })
 	try {
 		fs.appendFileSync(path.join(fixture.dir, 'devlog.md'), '\n+ review it yourself\n')
+		const notebook_before = fs.readFileSync(path.join(fixture.dir, 'devlog.md'))
+		const remote_before = fixture.run(['ls-remote', 'origin', 'refs/heads/main']).split('\t')[0]
 		const manifest = close_manifest(fixture.dir, { mode: 'push', remote: 'origin', branch: 'main' })
 		manifest.reply += '\n```completion-metadata\nHost review: PASS — inspected the isolated main-workspace push fixture and its remote SHA.\n```\n'
 		const result = spawnSync(process.execPath, [path.join(__dirname, 'agf.js'), 'close', '--manifest-stdin', '--push-authorized'], {
 			cwd: fixture.dir, input: JSON.stringify(manifest), encoding: 'utf8',
 		})
-		assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`)
-		const output = JSON.parse(result.stdout)
-		assert.equal(output.delivery.state, 'pushed')
-		assert.equal(fixture.run(['ls-remote', 'origin', 'refs/heads/main']).split('\t')[0], output.commit.sha)
+		assert.notEqual(result.status, 0)
+		assert.equal(JSON.parse(result.stdout).error.code, 'stream_auto_push_disabled')
+		assert.deepEqual(fs.readFileSync(path.join(fixture.dir, 'devlog.md')), notebook_before)
+		assert.equal(fixture.run(['ls-remote', 'origin', 'refs/heads/main']).split('\t')[0], remote_before)
 	} finally { drop(fixture.dir, fixture.bare) }
 })
 
@@ -1819,7 +1821,7 @@ test('finish local-only preparation and delivery never need a remote', () => {
 	drop(dir)
 })
 
-test('stream-auto-push off completes and cleans a stream locally with a configured remote', () => {
+test('stream-auto-push off completes and cleans a stream locally while origin is unreachable', () => {
 	const { dir, run, bare } = make_repo({ remote: true })
 	try {
 		const config_file = path.join(dir, 'ag.json')
@@ -1836,7 +1838,11 @@ test('stream-auto-push off completes and cleans a stream locally with a configur
 		assert.equal(run(['ls-remote', 'origin', 'refs/heads/login-page']).trim(), '')
 		run(['push', 'origin', 'login-page'], wt)
 		const remote_feature = run(['ls-remote', 'origin', 'refs/heads/login-page']).split('\t')[0]
-		run(['remote', 'set-url', '--push', 'origin', path.join(dir, 'unused-push-destination')])
+		// Stands in for an offline server or HTTP 403: every network call to origin fails.
+		run(['remote', 'set-url', 'origin', path.join(dir, 'unreachable-origin')])
+		run(['remote', 'add', 'second', bare])
+		const cached = () => run(['for-each-ref', 'refs/remotes'])
+		const cache_before = cached()
 		commit_stream_file(run, wt, 'feature.txt', 'feature\n')
 		const prep_logs = []
 		assert.equal(agf.main(['finish', '--prep'], wt, message => prep_logs.push(message)), 0)
@@ -1844,14 +1850,14 @@ test('stream-auto-push off completes and cleans a stream locally with a configur
 		assert.ok(!prep_logs.some(message => message.includes('push the committed closing record')))
 		close_local_stream(run, wt, 'login-page')
 		assert.equal(path.resolve(agf.main(['finish', '--deliver'], wt, () => {}).dir), dir)
-		assert.equal(run(['ls-remote', 'origin', 'refs/heads/main']).split('\t')[0], remote_main)
-		assert.equal(run(['ls-remote', 'origin', 'refs/heads/login-page']).split('\t')[0], remote_feature)
 		const cleanup_logs = []
-		assert.equal(path.resolve(agf.main(['cleanup', 'login-page'], dir, message => cleanup_logs.push(message)).dir), dir)
+		assert.equal(path.resolve(agf.main(['cleanup', 'login-page'], dir, message => cleanup_logs.push(message)).dir), dir, cleanup_logs.join('\n'))
 		assert.ok(cleanup_logs.some(message => message.includes('merge remains local')))
-		assert.equal(run(['ls-remote', 'origin', 'refs/heads/main']).split('\t')[0], remote_main)
-		assert.equal(run(['ls-remote', 'origin', 'refs/heads/login-page']).split('\t')[0], remote_feature)
+		assert.ok(!fs.existsSync(wt))
 		assert.equal(run(['branch', '--list', 'login-page']).trim(), '')
+		assert.equal(cached(), cache_before)
+		assert.equal(run(['ls-remote', bare, 'refs/heads/main']).split('\t')[0], remote_main)
+		assert.equal(run(['ls-remote', bare, 'refs/heads/login-page']).split('\t')[0], remote_feature)
 	} finally { drop(dir, bare) }
 })
 
@@ -1870,11 +1876,14 @@ test('stream-auto-push off leaves a manually published branch on ditch', () => {
 		const wt = opened.dir
 		run(['push', 'origin', 'login-page'], wt)
 		const remote_feature = run(['ls-remote', 'origin', 'refs/heads/login-page']).split('\t')[0]
-		run(['remote', 'set-url', '--push', 'origin', path.join(dir, 'unused-push-destination')])
+		run(['remote', 'set-url', 'origin', path.join(dir, 'unreachable-origin')])
+		run(['remote', 'add', 'second', bare])
 		const logs = []
-		assert.equal(path.resolve(agf.main(['ditch', 'login-page'], dir, message => logs.push(message), () => 'Y\n').dir), dir)
+		assert.equal(path.resolve(agf.main(['ditch', 'login-page'], dir, message => logs.push(message), () => 'Y\n').dir), dir, logs.join('\n'))
 		assert.ok(logs.some(message => message.includes('origin/login-page was left unchanged')))
-		assert.equal(run(['ls-remote', 'origin', 'refs/heads/login-page']).split('\t')[0], remote_feature)
+		assert.ok(!fs.existsSync(wt))
+		assert.equal(run(['branch', '--list', 'login-page']).trim(), '')
+		assert.equal(run(['ls-remote', bare, 'refs/heads/login-page']).split('\t')[0], remote_feature)
 	} finally { drop(dir, bare) }
 })
 
@@ -1903,6 +1912,46 @@ test('stream-auto-push off reads the committed branch setting when the worktree 
 		assert.equal(path.resolve(agf.main(['ditch', 'login-page'], dir, message => logs.push(message), () => 'Y\n').dir), dir, logs.join('\n'))
 		assert.ok(logs.some(message => message.includes('origin/login-page was left unchanged')), logs.join('\n'))
 		assert.equal(run(['ls-remote', 'origin', 'refs/heads/login-page']).split('\t')[0], remote_feature)
+	} finally { drop(dir, bare) }
+})
+
+test('stream-auto-push off refuses cleanup without a local feature branch and explains how to create one', () => {
+	const { dir, run, bare } = make_repo({ remote: true })
+	try {
+		const wt = open_local_only_stream(dir, run)
+		run(['worktree', 'remove', '--force', wt])
+		run(['branch', '-D', 'login-page'])
+		run(['remote', 'set-url', 'origin', path.join(dir, 'unreachable-origin')])
+		const main_before = run(['rev-parse', 'main'])
+		const cache_before = run(['for-each-ref', 'refs/remotes'])
+		const logs = []
+		assert.equal(agf.main(['cleanup', 'login-page'], dir, message => logs.push(message)), 1)
+		assert.ok(logs.some(message => message.includes('nothing was changed')), logs.join('\n'))
+		assert.ok(logs.some(message => message.includes('git branch login-page origin/login-page')), logs.join('\n'))
+		assert.equal(run(['rev-parse', 'main']), main_before)
+		assert.equal(run(['for-each-ref', 'refs/remotes']), cache_before)
+	} finally { drop(dir, bare) }
+})
+
+test('stream-auto-push off warns from the last fetch without blocking cleanup', () => {
+	const { dir, run, bare } = make_repo({ remote: true })
+	try {
+		const wt = open_local_only_stream(dir, run)
+		commit_stream_file(run, wt, 'feature.txt', 'feature\n')
+		close_local_stream(run, wt, 'login-page')
+		run(['remote', 'set-url', 'origin', path.join(dir, 'unreachable-origin')])
+		// The last fetch saw newer commits on both origin branches.
+		const ahead = ref => run(['commit-tree', `${ref}^{tree}`, '-p', ref, '-m', 'teammate work']).trim()
+		run(['update-ref', 'refs/remotes/origin/main', ahead('main')])
+		run(['update-ref', 'refs/remotes/origin/login-page', ahead('login-page')])
+		const cache_before = run(['for-each-ref', 'refs/remotes'])
+		const logs = []
+		assert.equal(path.resolve(agf.main(['cleanup', 'login-page'], dir, message => logs.push(message)).dir), dir, logs.join('\n'))
+		const warned = name => logs.some(message => message.includes('according to the last fetch') && message.includes(name))
+		assert.ok(warned('origin/main'), logs.join('\n'))
+		assert.ok(warned('origin/login-page'), logs.join('\n'))
+		assert.equal(run(['branch', '--list', 'login-page']).trim(), '')
+		assert.equal(run(['for-each-ref', 'refs/remotes']), cache_before)
 	} finally { drop(dir, bare) }
 })
 

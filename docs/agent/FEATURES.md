@@ -2,7 +2,7 @@
 
 Most features are **prompt-defined**: the "implementation" is a Markdown section that the host follows. Only the looper (F10) has executable code and tests. For each feature, read the listed reference section first.
 
-Paths below are relative to `skills/aglite/` unless they start with `.claude-plugin/`, `README` or `CHANGELOG`.
+Paths below are relative to `skills/agentflow/` unless they start with `.claude-plugin/`, `README` or `CHANGELOG`.
 
 ---
 
@@ -26,17 +26,17 @@ Paths below are relative to `skills/aglite/` unless they start with `.claude-plu
 
 ## F3. Configuration (`ag.json`) and migration
 
-- **Purpose**: per-project settings, schema 12.
-- **Definition**: `references/configuration.md` (discovery, switches, worker settings), `references/upkeep.md#automatic-migration`, `references/legacy-migration.md` (Agentflow 8).
+- **Purpose**: per-project settings, schema 13. Target schema = `schema-version` of the bundled template (`references/configuration.md#discovery-and-validation`); `switches.saving-mode` is required (`on|off`); migration adds `off` only when absent.
+- **Definition**: `references/configuration.md` (discovery, switches, worker settings), `references/upkeep.md#automatic-migration`, `references/legacy-migration.md` (Agentflow 8; proven v8 input also materializes absent `pipeline-roles.threeways: better`).
 - **Template**: `assets/.agentflow/ag.json`.
-- **Code**: looper's independent discovery `scripts/looper.js:read_settings` (refuses legacy/colliding/symlinked configs, requires schema 12 or absent; never rewrites). Tests: "configuration discovery selects deeply nested ag-dir …", "configuration collisions and legacy locations fail …", "current config requires schema 12 …", "coordinator requires host migration …".
+- **Code**: looper's independent discovery `scripts/looper.js:read_settings` (refuses legacy/colliding/symlinked configs; requires schema equal to the bundled template's `current_schema` or absent; requires `switches.saving-mode` `on|off`; integer schemas 9..current−1 and `aglite-5` at `.agentflow/ag.json` are treated as legacy; never rewrites). Tests: "configuration discovery selects deeply nested ag-dir …", "configuration collisions and legacy locations fail …", "current config requires the bundled schema and safe ag-dir …", "saving-mode accepts exact on/off and refuses missing or invalid values before claims", "coordinator requires host migration …".
 - **Side effects**: host-only migration writes (atomic rename); `next_update_date` scheduling.
 
 ## F4. First-time setup and AGENTS.md adoption
 
 - **Purpose**: create config, notebook, backlog, registry, dirs; add activation directive to consumer `AGENTS.md`.
-- **Definition**: `references/setup.md#first-time-setup`, `#agents-adoption`.
-- **Side effects**: may ask to `git init` and create an empty bootstrap commit.
+- **Definition**: `references/setup.md#first-time-setup`, `#agents-adoption`, `#empty-bootstrap`.
+- **Side effects**: may ask to `git init`; for an approved `git init` or an existing repository without commits, creates one empty bootstrap commit (`git commit --allow-empty --only -m "chore: initialize repository"`) even with `auto-commit: off`, unless commits are explicitly forbidden. Pre-existing staged/untracked contents are excluded from the first delivery (`references/delivery.md#git-delivery`). No push authority.
 
 ## F5. Task modes and execution
 
@@ -82,6 +82,7 @@ Paths below are relative to `skills/aglite/` unless they start with `.claude-plu
 
 - **Commands**: `new-feature <name>`, `merge-feature <name> [and cleanup]`, `drop-feature <name>`.
 - **Definition**: `references/features.md` (identity, STATUS fields `Stream/Cleanup/Session`, each command's numbered steps, `#retire-one-worktree`, `#directory-transition`, `#required-handoff`).
+- **Bootstrap**: if main has no HEAD, `new-feature` applies only `setup.md#empty-bootstrap` (no main notebook access) before adding the worktree.
 - **Layout**: `<main>/.wts/ft-<name>` on `feature/<name>`; notebook `<ag-dir>/features/<name>/<name>.devlog.md`.
 - **Side effects**: `git worktree add`, scoped merges (`git merge-tree --write-tree` / `commit-tree` / `update-ref` CAS when root notebook paths differ), Trash-based removal, `git branch -d/-D`.
 - **Tests**: none (prompt). Note the looper reuses `.wts/` for its own `aglite-*` worktrees and rejects `.wts` in task `allowed_paths`.
@@ -89,7 +90,7 @@ Paths below are relative to `skills/aglite/` unless they start with `.claude-plu
 ## F12. Git delivery
 
 - **Switches**: `auto-commit`, `auto-push` (both default on).
-- **Definition**: `references/delivery.md#git-delivery`. Task commit first, owner edits in a separate commit, then push; never `git add .`/`-A`, force, pull, rebase, stash.
+- **Definition**: `references/delivery.md#git-delivery`. Task commit first, owner edits in a separate commit, then push; the empty bootstrap (F4) is the only commit allowed with `auto-commit: off`; never `git add .`/`-A`, force, pull, rebase, stash.
 
 ## F13. Shared records: project rules, backlog, system invariants
 
@@ -105,8 +106,8 @@ Paths below are relative to `skills/aglite/` unless they start with `.claude-plu
 
 ## F15. Release check and installation upkeep
 
-- **Definition**: `references/configuration.md#session-release-check` (checks `agfnow/agentflow` stable releases, writes `next_update_date` = today + 2 days), `references/upkeep.md#approved-installation-replacement`.
-- **Distribution metadata**: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `skills/aglite/package.json`.
+- **Definition**: `references/configuration.md#session-release-check` (checks `agfnow/agentflow` stable releases, writes `next_update_date` = today + 2 days), `references/upkeep.md#approved-installation-replacement`. Eligibility: installed aglite beta or Agentflow 9+ only upgrades to Agentflow 9+ stable releases, never to 8.x.
+- **Distribution metadata**: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `skills/agentflow/package.json`.
 
 ---
 
@@ -116,7 +117,8 @@ Paths below are relative to `skills/aglite/` unless they start with `.claude-plu
 | --- | --- |
 | Why a host did X at activation | `SKILL.md#route-before-records` |
 | Notebook format / receipt | `references/delivery.md#notebook-and-delivery`, `assets/.agentflow/devlog.md` |
-| A setting's meaning/default | `references/configuration.md#switch-effects`, `docs/CHEATSHEET.md` |
+| A setting's meaning/default | `references/configuration.md#switch-effects`, `docs/CHEATSHEET.md` (zh-TW: `docs/CHEATSHEET.tw.md`) |
+| Differences from Agentflow 8 | `docs/agv8-aglite-comparison.md`, `references/legacy-migration.md` |
 | Which model/provider a worker uses | `references/review.md#worker-settings`, `scripts/looper.js:select` |
 | Looper scheduling/integration bug | `scripts/looper.js:run` (`task_job`, `integrate`, main `while` loop), `scripts/looper-integration.js` |
 | Agent CLI flags | `scripts/looper-agent.js:launch_agent` |

@@ -85,9 +85,17 @@ Comment above `looper.js:notebook_rounds`: "Phase comes from the sequence, never
 
 ## D20. Repository is a release mirror of a private source repo — [Inferred]
 
-Commit messages `release: aglite @ <sha>` and CHANGELOG 0.3.0 ("separate private source repository"). Implication: direct edits here may be overwritten by the next release sync; upstream the change if possible.
+Commit messages `release: aglite @ <sha>` / `release: agentflow @ <sha>` and CHANGELOG 0.3.0 ("separate private source repository"). Implication: direct edits here may be overwritten by the next release sync; upstream the change if possible.
+
+## D21. Target config schema comes from the bundled template — [Documented] + [Implemented]
+
+`references/configuration.md#discovery-and-validation`: the target schema is the template's integer `schema-version`, "not the package version or a remote latest release"; versions above it stop. Code: `looper.js` and both test files read `current_schema` from `assets/.agentflow/ag.json`, so bumping the template bumps what the looper accepts. Schema 13 (9.0.0) made `switches.saving-mode` required (`references/upkeep.md#automatic-migration`).
+
+## D22. Rename to `agentflow` keeps looper runtime identifiers — [Documented]
+
+CHANGELOG 9.0.0: the looper "retains its bounded runtime and stored identifiers". `aglite-*` branches/worktrees, `.aglite-records/`, `aglite-target-*.owner` and `aglite runner` remain in `looper.js` / `looper-integration.js`. Rationale (inferred): existing queues, claims and worktrees stay recognizable across the rename.
 
 ## Unknowns
 
-- Why schema numbers jumped (aglite-5 → 9 → 12) beyond the migration tables in `upkeep.md` / `legacy-migration.md`.
+- Why schema numbers jumped (aglite-5 → 9 → 13) beyond the migration tables in `upkeep.md` / `legacy-migration.md`.
 - Validation status on each OS/host: docs explicitly say proof is limited to recorded checks.

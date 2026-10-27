@@ -1,6 +1,6 @@
 # Runtime flows
 
-Flows 1–4 are executed by the host following prompts (no code, no automated tests). Flows 5–8 are implemented in `skills/aglite/scripts/` and covered by `looper.test.js`. Paths are relative to `skills/aglite/`.
+Flows 1–4 are executed by the host following prompts (no code, no automated tests). Flows 5–8 are implemented in `skills/agentflow/scripts/` and covered by `looper.test.js`. Paths are relative to `skills/agentflow/`.
 
 ---
 
@@ -40,7 +40,7 @@ Failure paths: foreign/malformed claim blocks immediately; late conflict retries
 
 Trigger: `new-feature <name>`, `merge-feature <name> [and cleanup]`, `drop-feature <name>`. Source: `references/features.md`.
 
-- **new-feature**: verify main → `git worktree add -b feature/<name> <main>/.wts/ft-<name> <main-tip>` → reserve feature notebook claim → initialize `<ag-dir>/features/<name>/<name>.devlog.md` (and config if absent) → close preparation Ask with handoff → display 3-step handoff (`/cd <path>` then `godev`). No commit/push. Main root notebook untouched.
+- **new-feature**: verify main → if main has no HEAD, apply `setup.md#empty-bootstrap` only → `git worktree add -b feature/<name> <main>/.wts/ft-<name> <main-tip>` → reserve feature notebook claim → initialize `<ag-dir>/features/<name>/<name>.devlog.md` (and config if absent) → close preparation Ask with handoff → display 3-step handoff (`/cd <path>` then `godev`). No commit (except that empty bootstrap) or push. Main root notebook untouched.
 - **merge-feature**: claim feature notebook → commit verified feature paths → `git merge --no-ff` when safe, else scoped merge via `git merge-tree --write-tree` + `commit-tree` + CAS `git update-ref` excluding main notebook paths → validate combined main → mark `Stream: merged`, `Session: retired` → gates → optional cleanup (Trash, `git worktree remove`, `git branch -d`).
 - **drop-feature**: inspect contents/claims → move checkout to Trash → `git worktree remove` → `git branch -D` → report in chat (no durable record).
 - Side effects are local Git only; directory switch requires the owner to run `/cd` (host never simulates it).
@@ -68,7 +68,7 @@ Trigger: host runs `agf loop run <run-root>` for `run-tasks` / `handle-tasks`. E
 
 1. `load(root)` → `validate`: rejects legacy fields, requires schema 2, physical Git-root `repo`, valid `target_branch`, full `base_commit`, authorization booleans, registered checks, `group-NNN.md` files with exactly one `## <task>` heading per task, safe `allowed_paths` (not `.git`/`.wts`/`.aglite-records`), `depends_on` only to earlier groups, no unregistered group files.
 2. `request_text`: request file must be regular, UTF-8, sha256 = `request_sha256`.
-3. `read_settings(q.repo)`: walks repo for `ag.json` (skips `.git`, `node_modules`, `.aglite-records`, nested checkouts), exactly one canonical config, schema 12, `looper-limits`. Returns sha256 digest.
+3. `read_settings(q.repo)`: walks repo for `ag.json` (skips `.git`, `node_modules`, `.aglite-records`, nested checkouts), exactly one canonical config, schema = bundled template `current_schema` (13) or absent, `switches.saving-mode` exactly `on|off`, `looper-limits`. Returns sha256 digest.
 4. If any group needs a new task attempt, `select(settings, 'task')` validates routes before any claim/worktree.
 5. Claims: `.queue.owner` and `<git-common-dir>/aglite-target-<sha>.owner` via `acquire` (takeover only if old claim process and recorded children are proved stopped).
 6. Reconcile: landed-but-unrecorded integration (`phase: landing` and HEAD equals result) → `finished_merge`; `target_safe` → `lane_error`; re-prove done tasks/groups; check notebooks of in-progress groups.

@@ -1,8 +1,8 @@
 # AGENTS.md
 
-Shared entry point for AI coding agents working on **this repository** (the source of the aglite skill).
+Shared entry point for AI coding agents working on **this repository** (the source of the agentflow skill, formerly the aglite beta).
 
-This repo *ships* aglite; it is not itself an aglite-managed project. The activation directive that aglite's `references/setup.md#agents-adoption` adds to consumer projects does not belong here.
+This repo *ships* agentflow; it is not itself an agentflow-managed project. The activation directive that agentflow's `references/setup.md#agents-adoption` adds to consumer projects does not belong here.
 
 ## Repository knowledge
 
@@ -32,11 +32,11 @@ Update the relevant `docs/agent/` file when architecture, module responsibilitie
 
 Documentation is a navigation aid; source code is authoritative. If documentation and source code disagree, trust the source, mention the discrepancy, and update the knowledge documentation if appropriate.
 
-For this repo, "source" includes both `skills/aglite/scripts/*.js` (looper runtime) and the prompt files `skills/aglite/SKILL.md` and `skills/aglite/references/**` (workflow behavior).
+For this repo, "source" includes both `skills/agentflow/scripts/*.js` (looper runtime) and the prompt files `skills/agentflow/SKILL.md` and `skills/agentflow/references/**` (workflow behavior).
 
 ## Working on this repo
 
-- Tests: `cd skills/aglite && npm test` (Node.js ≥ 20, Git required; no npm dependencies).
-- Files under `skills/aglite/SKILL.md` and `skills/aglite/references/` are operational machine prompts; changing them changes agent behavior for every user.
-- When looper behavior changes, keep `references/looper.md`, `SKILL.md`, `references/configuration.md`, `references/review.md`, both guides in `skills/aglite/docs/`, `CHEATSHEET.md` and both READMEs aligned (`references/looper.md#scope-and-maintenance`).
-- Version strings appear in `.claude-plugin/plugin.json`, `skills/aglite/package.json`, `SKILL.md` metadata, README titles and `CHANGELOG.md`.
+- Tests: `cd skills/agentflow && npm test` (Node.js ≥ 20, Git required; no npm dependencies).
+- Files under `skills/agentflow/SKILL.md` and `skills/agentflow/references/` are operational machine prompts; changing them changes agent behavior for every user.
+- When looper behavior changes, keep `references/looper.md`, `SKILL.md`, `references/configuration.md`, `references/review.md`, both guides in `skills/agentflow/docs/`, `CHEATSHEET.md` / `CHEATSHEET.tw.md` and both READMEs aligned (`references/looper.md#scope-and-maintenance`).
+- Version strings appear in `.claude-plugin/plugin.json`, `skills/agentflow/package.json`, `SKILL.md` metadata, README titles and `CHANGELOG.md`.

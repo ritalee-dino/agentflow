@@ -21,10 +21,10 @@ flowchart LR
 
 ## Prompt layer
 
-- **Entrypoint**: `skills/aglite/SKILL.md`. Sections:
+- **Entrypoint**: `skills/agentflow/SKILL.md`. Sections:
   - `#route-before-records` — strict precedence: (1) off-record markers, (2) isolated looper task, (3) configuration/routing, (4) feature lifecycle, (5) fresh setup or idle shortcut, (6) owned work.
   - `#load-only-the-applicable-procedure` — which reference to load per situation. Design goal: keep the default load small (CHANGELOG 9.0.0-beta.1).
-- **Procedure references** (`skills/aglite/references/`), each owning one concern:
+- **Procedure references** (`skills/agentflow/references/`), each owning one concern:
 
 | Reference | Owns |
 | --- | --- |
@@ -37,13 +37,13 @@ flowchart LR
 | `batches.md` | `append-rounds` staging/advancement |
 | `features.md` | feature worktree lifecycle and handoffs |
 | `looper.md` | looper contract (authoritative for runtime behavior) |
-| `setup.md` | first-time setup, AGENTS.md adoption in consumer projects |
+| `setup.md` | first-time setup, AGENTS.md adoption in consumer projects, `#empty-bootstrap` (one empty commit for repos without HEAD) |
 | `upkeep.md`, `legacy-migration.md` | schema migration, Agentflow 8 migration, install replacement |
 | `invariants.md`, `project-rules.md` | system-invariant registry, shared project rules |
 | `ag.md` + `advisors/*.md` | optional advisor selection and prompts |
 | `copilot.md`, `windows.md`, `browser-testing.md`, `browfield.md`, `product-docs.md`, `writing.md`, `saving-mode.md` | situational guidance |
 
-- **Human docs** (`skills/aglite/docs/`) and READMEs restate behavior for users. `references/looper.md#scope-and-maintenance` requires SKILL.md, configuration, review, both guides, cheatsheet and README to stay aligned when looper behavior changes.
+- **Human docs** (`skills/agentflow/docs/`: `AG-GUIDE.md`/`AG-GUIDE.tw.md`, `CHEATSHEET.md`/`CHEATSHEET.tw.md`, `agv8-aglite-comparison.md`) and READMEs restate behavior for users. `references/looper.md#scope-and-maintenance` requires SKILL.md, configuration, review, both guides, cheatsheet and README to stay aligned when looper behavior changes.
 
 ## Persistence (consumer project, prompt layer)
 
@@ -51,7 +51,7 @@ All state is plain files written by the host, under the configured `ag-dir` (def
 
 | File | Purpose | Template |
 | --- | --- | --- |
-| `<ag-dir>/ag.json` | settings, schema 12 | `assets/.agentflow/ag.json` |
+| `<ag-dir>/ag.json` | settings, schema 13 (`switches.saving-mode` required) | `assets/.agentflow/ag.json` |
 | `<ag-dir>/<notebook-name>` | devlog: STATUS + append-only Ask/Reply rounds | `assets/.agentflow/devlog.md` |
 | `.<notebook>.owner` beside notebook | session claim JSON `{session, ask, claimed_at}` created with `wx` | — |
 | `<ag-dir>/backlog.md`, `<ag-dir>/sys-invariants.md`, optional `<ag-dir>/rules.md` | shared records | assets |
@@ -62,7 +62,7 @@ All state is plain files written by the host, under the configured `ag-dir` (def
 
 ## Looper runtime
 
-Modules in `skills/aglite/scripts/` (dependency direction: `agf.js → looper.js → {looper-integration, looper-agent, looper-state}`; `looper-integration` and `looper-agent` both use `looper-state`; `looper-integration.js:git` lazily requires `looper-agent.js:resolve_command` on Windows).
+Modules in `skills/agentflow/scripts/` (dependency direction: `agf.js → looper.js → {looper-integration, looper-agent, looper-state}`; `looper-integration` and `looper-agent` both use `looper-state`; `looper-integration.js:git` lazily requires `looper-agent.js:resolve_command` on Windows).
 
 | Module | Responsibility | Key symbols |
 | --- | --- | --- |
@@ -79,6 +79,7 @@ Modules in `skills/aglite/scripts/` (dependency direction: `agf.js → looper.js
 - `inputs/`, `attempts/<uuid>/` (prompt, schema, launch, transcript, exit, result, process, descendants), `evidence/` (check logs), `inbox/` (native results `<uuid>.json`, `answers.json`).
 - `.queue.owner` claim; target claim `aglite-target-<hash>.owner` in the Git common dir. Released claims are renamed `*.released-<uuid>`, never deleted.
 - Group worktrees: `<repo>/.wts/aglite-<run_id>-<group>` on branch `aglite-<run_id>-<group>`; integration worktrees `<repo>/.wts/aglite-merge-<run_id>-<group>-<uuid>`. Task notebooks in `<worktree>/.aglite-records/` (git-excluded, never integrated).
+- These `aglite`-prefixed names are retained runtime identifiers; the 9.0.0 rename to `agentflow` deliberately left them unchanged.
 
 ### Concurrency model
 

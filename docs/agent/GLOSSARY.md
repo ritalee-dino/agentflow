@@ -1,12 +1,12 @@
 # Glossary
 
-Paths are relative to `skills/aglite/`.
+Paths are relative to `skills/agentflow/`.
 
 ## Roles
 
 - **Owner** — the human who gives instructions and holds authority. Owner-only decisions cannot be made by workers or hosts.
-- **Host** — the owner-facing coding assistant session that loaded aglite. Owns notebook, claims, decisions, integration and delivery.
-- **Worker / delegate** — a bounded subagent or CLI session given one assignment (`references/review.md#give-one-bounded-assignment`). Never activates aglite itself unless it is a looper task host.
+- **Host** — the owner-facing coding assistant session that loaded agentflow. Owns notebook, claims, decisions, integration and delivery.
+- **Worker / delegate** — a bounded subagent or CLI session given one assignment (`references/review.md#give-one-bounded-assignment`). Never activates agentflow itself unless it is a looper task host.
 - **Native** — a worker launched through the host's own subagent tools. In the looper, native work goes through the inbox handoff.
 - **External / CLI** — a worker launched as a separate CLI process (`codex exec`, `claude -p`, `copilot`).
 - **Counterpart** — the other provider used for independent review (Claude host → Codex, Codex host → Claude). `scripts/looper.js:counterpart`.
@@ -15,7 +15,7 @@ Paths are relative to `skills/aglite/`.
 ## Records
 
 - **ag-dir** — configured record directory, default `.agentflow`. `.agentflow/` in prompts means the configured ag-dir.
-- **ag.json** — project configuration at `<checkout>/<ag-dir>/ag.json`, schema 12.
+- **ag.json** — project configuration at `<checkout>/<ag-dir>/ag.json`, schema 13 (target = bundled template's `schema-version`); `switches.saving-mode` required.
 - **Notebook / devlog** — the Markdown log at `<ag-dir>/<notebook-name>` (default `<dirname>.devlog.md`). Starts with STATUS, then rounds.
 - **STATUS** — top section of the notebook: Project, Notebook, Checkout, Branch, Current, Proven, Next, Archived eras (+ Stream, Cleanup, Session for features). Labels are localized by `use-lang`.
 - **Ask / Reply / round** — `# → Ask / A-NNN` heading with captured owner input, then `# → Reply / A-NNN`, then the next Ask. A-NNN is the round ID.
@@ -33,6 +33,7 @@ Paths are relative to `skills/aglite/`.
 - **Project rules** — shared baseline `references/project-rules.md` plus optional local `<ag-dir>/rules.md`.
 - **Archive** — `<notebook-stem>.archive.md`, receives old rounds when the notebook exceeds 750 lines.
 - **Pending batches** — tracker/evidence section holding staged `append-rounds` input.
+- **Empty bootstrap** — the single `chore: initialize repository` empty commit made for eligible first setup or main-rooted `new-feature` when the repo has no HEAD (`references/setup.md#empty-bootstrap`).
 
 ## Commands and modes
 
@@ -74,5 +75,6 @@ Paths are relative to `skills/aglite/`.
 - **Handoff (native)** — `attempts/<uuid>/assignment.md` read by host; result returned in `inbox/<uuid>.json` with `writer_stopped: true`.
 - **Question** — blocker saved in `queue.json` `questions`; answered through `inbox/answers.json`.
 - **commit_intent** — saved before a task commit so a crash can finish or verify it.
-- **.aglite-records** — per-worktree isolated task notebook directory; git-excluded, never integrated.
+- **.aglite-records** — per-worktree isolated task notebook directory; git-excluded, never integrated. The `aglite` prefix (also in `aglite-*` branches/worktrees and claims) is a retained runtime identifier from the beta name.
+- **aglite** — former beta name (9.0.0-beta.1) of Agentflow 9; now only a legacy identifier, a migratable schema string `aglite-5`, and an installation the release check treats as eligible for Agentflow 9+.
 - **Writer stopped / process identity** — proof via PID + start time (`scripts/looper-state.js:process_identity`, `writer_stopped`).

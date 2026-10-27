@@ -1,6 +1,6 @@
 # Agent knowledge base — index
 
-Routing page for AI coding agents working **on this repository** (the aglite skill source). Read this page, load only the document that matches the question, then verify against current source. Source code and the skill's own reference files are authoritative; these documents are a navigation layer.
+Routing page for AI coding agents working **on this repository** (the agentflow skill source; formerly named aglite). Read this page, load only the document that matches the question, then verify against current source. Source code and the skill's own reference files are authoritative; these documents are a navigation layer.
 
 ## Which document to read
 
@@ -16,9 +16,9 @@ Routing page for AI coding agents working **on this repository** (the aglite ski
 ## How to use it
 
 1. Pick one or two documents from the table; do not load all of them by default.
-2. Follow the file/symbol references to the current source (`skills/aglite/...`).
-3. For behavior of the Node looper, confirm against `skills/aglite/scripts/*.js` and the matching test in `skills/aglite/scripts/looper.test.js` or `looper-copilot.test.js`.
-4. For workflow behavior (prompt-defined), the authority is the Markdown under `skills/aglite/SKILL.md` and `skills/aglite/references/`. Quote section anchors, not line numbers.
+2. Follow the file/symbol references to the current source (`skills/agentflow/...`).
+3. For behavior of the Node looper, confirm against `skills/agentflow/scripts/*.js` and the matching test in `skills/agentflow/scripts/looper.test.js` or `looper-copilot.test.js`.
+4. For workflow behavior (prompt-defined), the authority is the Markdown under `skills/agentflow/SKILL.md` and `skills/agentflow/references/`. Quote section anchors, not line numbers.
 5. If a document here disagrees with source, trust source, mention the discrepancy, and update the document when the change is architectural.
 
 ## Conventions used in these documents

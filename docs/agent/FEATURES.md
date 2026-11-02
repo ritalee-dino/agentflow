@@ -1,6 +1,6 @@
 # Feature map
 
-Most features are **prompt-defined**: the "implementation" is a Markdown section that the host follows. Only the looper (F10) has executable code and tests. For each feature, read the listed reference section first.
+Most features are **prompt-defined**: the "implementation" is a Markdown section that the host follows. Only the looper (F10) and the terminal feature CLI (F11b) have executable code and tests. For each feature, read the listed reference section first.
 
 Paths below are relative to `skills/agentflow/` unless they start with `.claude-plugin/`, `README` or `CHANGELOG`.
 
@@ -28,14 +28,15 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 
 - **Purpose**: per-project settings, schema 13. Target schema = `schema-version` of the bundled template (`references/configuration.md#discovery-and-validation`); `switches.saving-mode` is required (`on|off`); migration adds `off` only when absent.
 - **Definition**: `references/configuration.md` (discovery, switches, worker settings), `references/upkeep.md#automatic-migration`, `references/legacy-migration.md` (Agentflow 8; proven v8 input also materializes absent `pipeline-roles.threeways: better`).
-- **Template**: `assets/.agentflow/ag.json`.
-- **Code**: looper's independent discovery `scripts/looper.js:read_settings` (refuses legacy/colliding/symlinked configs; requires schema equal to the bundled template's `current_schema` or absent; requires `switches.saving-mode` `on|off`; integer schemas 9..current−1 and `aglite-5` at `.agentflow/ag.json` are treated as legacy; never rewrites). Tests: "configuration discovery selects deeply nested ag-dir …", "configuration collisions and legacy locations fail …", "current config requires the bundled schema and safe ag-dir …", "saving-mode accepts exact on/off and refuses missing or invalid values before claims", "coordinator requires host migration …".
+- **Template**: `assets/.agentflow/ag.json` (9.1.0 adds top-level `default-editor: vscode` and Codex CLI `looper-routes`; neither needs a schema bump).
+- **Code**: the feature CLI has its own canonical discovery without migration (`scripts/feature-common.js:discover`). Looper's independent discovery `scripts/looper.js:read_settings` (refuses legacy/colliding/symlinked configs; requires schema equal to the bundled template's `current_schema` or absent; requires `switches.saving-mode` `on|off`; integer schemas 9..current−1 and `aglite-5` at `.agentflow/ag.json` are treated as legacy; never rewrites). Tests: "configuration discovery selects deeply nested ag-dir …", "configuration collisions and legacy locations fail …", "current config requires the bundled schema and safe ag-dir …", "saving-mode accepts exact on/off and refuses missing or invalid values before claims", "coordinator requires host migration …".
 - **Side effects**: host-only migration writes (atomic rename); `next_update_date` scheduling.
 
 ## F4. First-time setup and AGENTS.md adoption
 
 - **Purpose**: create config, notebook, backlog, registry, dirs; add activation directive to consumer `AGENTS.md`.
 - **Definition**: `references/setup.md#first-time-setup`, `#agents-adoption`, `#empty-bootstrap`.
+- **Also**: `#agf-command-setup` — during eligible first-time setup the host generates the `agf` shell function (`node <skill>/scripts/agf.js shell <zsh|bash|powershell>`) and appends it to the login shell's startup files if absent; existing bindings are never auto-upgraded. `#detected-worker-defaults` — new configs set all three `looper-routes` to a detected `codex` (preferred) or `claude` CLI, else native routes or empty.
 - **Side effects**: may ask to `git init`; for an approved `git init` or an existing repository without commits, creates one empty bootstrap commit (`git commit --allow-empty --only -m "chore: initialize repository"`) even with `auto-commit: off`, unless commits are explicitly forbidden. Pre-existing staged/untracked contents are excluded from the first delivery (`references/delivery.md#git-delivery`). No push authority.
 
 ## F5. Task modes and execution
@@ -47,12 +48,13 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 ## F6. Planning, designs, trackers and gates
 
 - **Definition**: `references/planning.md` (creation criteria, design sections `## Invariants`, `## Acceptance criteria`, `## Validation`, `## Minimality check`; tracker statuses TODO/DOING/BLOCKED/DONE), `#planning-modes-and-gates` (`plan-mode`, `gate-design`, `gate-tracker`).
-- **Routing**: `plan-order` in `references/review.md#planning-routes` (3ways → external → native → host).
+- **Routing**: `plan-order` in `references/review.md#planning-routes` (3ways → external → native → host). Since 9.1.0, simple understood low-risk planning (including simple task grouping) stays in the host; complex planning uses the configured route.
 
 ## F7. Delegation and result review
 
 - **Commands**: `3ways`, `skip-review`; switch `review-order`.
-- **Definition**: `references/review.md` (`#worker-settings`, `#choose-a-worker`, `#give-one-bounded-assignment`, `#inspect-the-finished-result`, `#3ways-compare-before-implementation`); `references/copilot.md` for Copilot.
+- **Definition**: `references/review.md` (`#worker-settings`, `#choose-a-worker`, `#give-one-bounded-assignment`, `#planning-routes`, `#result-review-routes`, `#inspect-the-finished-result`, `#3ways-compare-before-implementation`); `references/copilot.md` for Copilot.
+- **3ways (9.1.0)**: Claude and Codex draft blind, then exchange and debate; Codex writes the final synthesis with dispositions (dissent recorded, consensus only on identical accepted content). On any route using Codex, Codex owns final planning content.
 - **External integrations**: `codex exec`, `claude -p` example command shapes in `review.md`.
 
 ## F8. Advisors
@@ -67,16 +69,18 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 
 ## F10. Looper — grouped parallel execution (only executable feature)
 
-- **Commands**: chat `prepare-tasks`, `run-tasks`, `handle-tasks`; shell `agf loop run [run-root]`, `agf loop status [run-root]`.
+- **Commands**: chat `prepare-tasks`, `run-tasks`, `handle-tasks`; shell `agf looper run [run-root] [--cleanup]`, `agf looper status [run-root]`, `agf looper cleanup <run-root>`. `prepare-tasks` must show both terminal (`agf looper status/run`) and chat (`run-tasks`) execution choices, even with `inline-reply: off`.
 - **Contract**: `references/looper.md` (authoritative), settings in `#looper-settings`.
-- **Entry**: `scripts/agf.js` → `scripts/looper.js:run` / `status`.
-- **Core path**: `looper.js:run` → `load`/`validate` → `request_text` → `read_settings` → `select` → claims (`looper-state.js:acquire_claim`) → per-group `task_job` (`looper-integration.js:prepare_group` → `invoke` → `looper-agent.js:launch_agent` → `ordinary_closeout` → `commit_task` → `checks`) → `integrate` (`prepare_integration` → checks → optional repair/review/acceptance → `land`).
-- **Persistence**: run-root files (`queue.json`, `attempts/`, `inbox/`, `evidence/`, `inputs/`), `.wts/aglite-*` worktrees, `.aglite-records/` notebooks, claims.
+- **Entry**: `scripts/agf.js:main` → `scripts/looper.js:run` / `status`; `scripts/looper-cleanup.js:cleanup`; presentation via `scripts/looper-report.js`.
+- **Core path**: `looper.js:run` → `load`/`validate` → `request_text` → `read_settings` → `select` → claims (`looper-state.js:acquire_claim`) → per-group `task_job` (`looper-integration.js:prepare_group` → `invoke` → `looper-agent.js:launch_agent` → `ordinary_closeout` → `commit_task` → `checks`) → `integrate` (`adopt_target` → `prepare_integration` → checks → optional repair/review/acceptance → `land`). CLI tasks may request ordinary review through the relay (`.aglite-records/ordinary-review/<attempt>/request.json`).
+- **Persistence**: run-root files (`queue.json`, `attempts/`, `inbox/`, `evidence/` incl. `run-*.txt` reports, `inputs/`, `results.md`), `.wts/aglite-*` worktrees, `.aglite-records/` notebooks, claims.
+- **Cleanup (9.1.0)**: explicit only; requires a complete, settled, checked run; macOS Trash only (other platforms refuse); keeps branches and only queue/request/group plans; journaled in `queue.cleanup`. A cleaned queue makes a later `run` return 0 without workers.
+- **Reports (9.1.0)**: stderr progress + 30 s heartbeat; stdout summary; `results.md` + `evidence/run-*.txt`; English/zh-TW via `use-lang`. Report failures never change scheduling or exit codes.
 - **External**: `codex`, `claude`, `copilot` CLIs; Git.
-- **Exit codes**: `run` 0 complete, 2 blocked/stopped, 1 error (`agf.js`, `looper.md#shell-entry--alphabetical`).
-- **Tests**: `scripts/looper.test.js` (≈60 tests: concurrency, FIFO integration, repair, native handoff, questions, crash recovery, dependencies, config, Windows), `scripts/looper-copilot.test.js` (CLI args and result parsing).
+- **Exit codes**: `run` 0 complete, 2 blocked/stopped, 1 error; `cleanup` 0 complete, else 1; `run --cleanup` with task success but cleanup failure → 1 (`agf.js:main`, `looper.md#explicit-cleanup`).
+- **Tests**: `scripts/looper.test.js` (≈100 tests: concurrency, FIFO integration, repair, ordinary-review relay, target adoption/landing recovery, changed contracts, native handoff, questions, crash recovery, dependencies, config, Windows), `scripts/looper-copilot.test.js` (CLI args and result parsing), `scripts/looper-agent.test.js` (failure evidence), `scripts/looper-report.test.js`, `scripts/looper-cleanup.test.js`.
 - **Example queue**: `assets/looper-groups.example.json`.
-- Details in [FLOWS.md](FLOWS.md#looper-run).
+- Details in [FLOWS.md](FLOWS.md#6-looper-run).
 
 ## F11. Feature worktrees
 
@@ -85,7 +89,19 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 - **Bootstrap**: if main has no HEAD, `new-feature` applies only `setup.md#empty-bootstrap` (no main notebook access) before adding the worktree.
 - **Layout**: `<main>/.wts/ft-<name>` on `feature/<name>`; notebook `<ag-dir>/features/<name>/<name>.devlog.md`.
 - **Side effects**: `git worktree add`, scoped merges (`git merge-tree --write-tree` / `commit-tree` / `update-ref` CAS when root notebook paths differ), Trash-based removal, `git branch -d/-D`.
-- **Tests**: none (prompt). Note the looper reuses `.wts/` for its own `aglite-*` worktrees and rejects `.wts` in task `allowed_paths`.
+- **Tests**: none for the host chat path (prompt). Note the looper reuses `.wts/` for its own `aglite-*` worktrees and rejects `.wts` in task `allowed_paths`.
+
+## F11b. Terminal feature CLI (9.1.0)
+
+- **Purpose**: run the feature lifecycle from a terminal, with caller-shell directory switching.
+- **Commands**: `agf new-feature <name> [--open]` (`newft`), `agf merge-feature [name] [--cleanup] [--include <path>]… [--check '<JSON argv>']…` (`mergeft`), `agf drop-feature [name] [--abandon]` (`dropft`), `agf shell <zsh|bash|powershell>`. Merge/drop infer the name only inside their own feature checkout.
+- **Contract**: `references/features.md#terminal-cli`, `#terminal-directory-transition`; shell function setup `references/setup.md#agf-command-setup`; Windows `references/windows.md#feature-cli`; `default-editor` in `references/configuration.md#discovery-and-validation`.
+- **Entry**: `scripts/agf.js:main` (argv validation, SIGINT/SIGTERM → `AbortController`) → `scripts/feature.js:create` / `drop`, `scripts/feature-merge.js:merge`.
+- **Behavior**: never reads main's root notebook/archive/claim; claims are random-UUID markers, not PID-owned; requires Node ≥ 20 and Git (merge: ≥ 2.38). Merge checks: explicit `--check`, else the candidate `package.json` test, else none (reported as such); each check/resolver has a 10-minute limit. Conflicts go to `codex exec` in the candidate checkout, restricted to conflict paths. Honors `auto-commit` / `auto-push`; `gate-design` / `gate-tracker` on → stop for host continuation.
+- **Persistence**: feature notebook; `merge-state.json` / `snapshot-state.json` / `intake-state.json` and a `.merge-*` workspace under `<ag-dir>/features/<name>/`.
+- **Directory switch**: only via the generated shell function's private `AGF_CD_FILE` (destination line + optional hint with `AGF_CD_HINT=1`); direct Node runs print a `cd` / `Set-Location` continuation.
+- **Platforms**: macOS Trash; Windows direct deletion of the exact checkout/claims (best effort, untested natively); Linux refused (`scripts/feature-common.js:preflightClaimDisposal`).
+- **Tests**: `scripts/feature.test.js`, `scripts/feature-merge.test.js`, `scripts/feature-shell.test.js` (several are macOS-only and skip elsewhere).
 
 ## F12. Git delivery
 
@@ -118,9 +134,12 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 | Why a host did X at activation | `SKILL.md#route-before-records` |
 | Notebook format / receipt | `references/delivery.md#notebook-and-delivery`, `assets/.agentflow/devlog.md` |
 | A setting's meaning/default | `references/configuration.md#switch-effects`, `docs/CHEATSHEET.md` (zh-TW: `docs/CHEATSHEET.tw.md`) |
-| Differences from Agentflow 8 | `docs/agv8-aglite-comparison.md`, `references/legacy-migration.md` |
+| Differences from Agentflow 8 | `docs/agv8-agv9-comparison.md`, `references/legacy-migration.md` |
 | Which model/provider a worker uses | `references/review.md#worker-settings`, `scripts/looper.js:select` |
 | Looper scheduling/integration bug | `scripts/looper.js:run` (`task_job`, `integrate`, main `while` loop), `scripts/looper-integration.js` |
 | Agent CLI flags | `scripts/looper-agent.js:launch_agent` |
+| Looper terminal output / reports | `scripts/looper-report.js`, `scripts/agf.js:main` |
+| Looper cleanup | `references/looper.md#explicit-cleanup`, `scripts/looper-cleanup.js:cleanup` |
+| Terminal feature commands | `references/features.md#terminal-cli`, `scripts/feature*.js` |
 | Process/claim safety | `scripts/looper-state.js` |
 | Windows behavior | `references/windows.md`, `looper-agent.js:resolve_command`, `looper-state.js:process_identity` |

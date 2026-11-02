@@ -13,7 +13,7 @@ Ordinary behavior is executed by the host with its own tools. Sources: `referenc
 
 ## D2. The looper is a narrow runtime exception — [Documented]
 
-`references/looper.md` intro and `#scope-and-maintenance`: scoped Node coordinator, only `run`/`status`, no cleanup/push/release authority. Zero dependencies (`package.json`). Added in 0.3.1 (`CHANGELOG.md`).
+`references/looper.md` intro and `#scope-and-maintenance`: scoped Node coordinator, only `run`/`status`/`cleanup`, no push/release authority; cleanup only through its explicit command/flag (9.1.0). Zero dependencies (`package.json`). Added in 0.3.1 (`CHANGELOG.md`). Since 9.1.0 a second bounded exception exists, the terminal feature CLI (D23).
 
 ## D3. Small entrypoint, demand-loaded references — [Documented]
 
@@ -41,15 +41,15 @@ Prompt: `session.md#notebook-ownership` (`fs.openSync(path, 'wx')`). Code: `loop
 
 ## D9. Serial integration lane with checked expected head — [Documented] + [Implemented]
 
-`looper.md#execute-and-integrate`; `looper-integration.js:target_safe`, `land` (`--ff-only` after ancestry checks). External target movement stops the lane rather than silently adopting it. Tests: "external target movement stops integration …", "startup target movement blocks only the lane …".
+`looper.md#execute-and-integrate`; `looper-integration.js:target_safe`, `land` (`--ff-only` after ancestry checks). Changed in 9.1.0: compatible same-branch forward movement is recorded (`adopt_target`, `queue.target_adoptions`) and checked results are carried onto the latest head with checks rerun; adoption never marks progress. Branch changes, history rewrites, foreign Git operations and unknown landing effects still stop the lane. Tests: "external forward target movement integrates once …", "startup target movement is adopted before new task workspaces", "adoption refuses branch mismatch, rewrite and foreign operations …".
 
 ## D10. No extra verifier/gates in the looper — [Documented]
 
 `looper.md` intro and `looper.js:validate` rejects legacy fields `group_gates`, `waves`, `final_checks`, etc. Clean checked merges launch no review; only repairs trigger review + acceptance. Rationale: preserve ordinary task workflow and avoid duplicated review stages (inferred from "no extra supervisor, verifier or whole-group/wave/final gate").
 
-## D11. Repair needs a different reviewer provider — [Implemented]
+## D11. Repaired-result review may reuse the repairer's provider — [Documented] + [Implemented]
 
-`looper.js:counterpart` and its use in `invoke('repair')` / `integrate`: CLI repair and CLI review must differ in provider, except Copilot (multi-family; comment above `counterpart`). Test: "a restarted repair cannot select its own CLI provider for a fresh review".
+Superseded in 9.1.0: the former rule that CLI repair and CLI review must differ in provider (`looper.js:counterpart`) was removed. `references/looper.md#schema-and-inputs` now allows the available configured provider, including the repairer's, in independently launched fresh sessions, keeping separate review, renewed acceptance and checks, and disclosing repeated provider/model identity; explicit stricter task requirements prevail. Test: "a restarted repair can use the available same-provider fresh reviewer". Rationale (inferred): new configurations default all looper routes to one detected CLI (`setup.md#detected-worker-defaults`).
 
 ## D12. Settings live only in `ag.json`; queue cannot override workers/limits — [Documented] + [Implemented]
 
@@ -69,15 +69,15 @@ Comment above `looper.js:notebook_rounds`: "Phase comes from the sequence, never
 
 ## D16. Reversible deletion only (Trash), no force/prune — [Documented]
 
-`features.md#retire-one-worktree`, `windows.md#reversible-cleanup`. Looper never cleans up worktrees (`looper.md#retained-files`).
+`features.md#retire-one-worktree`, `windows.md#reversible-cleanup`. The looper cleans up only on explicit `agf looper cleanup` / `run --cleanup`, via macOS Trash, never deleting branches (`looper.md#explicit-cleanup`, `looper-cleanup.js`). Exception: the terminal feature CLI on Windows may permanently delete the exact verified feature checkout and its own UUID claims under a narrow owner exception (`features.md#terminal-cli`, `windows.md#feature-cli`).
 
 ## D17. Prefer CLI task routes for the looper — [Documented]
 
-`looper.md#prepare-and-route`: fresh short-lived external sessions per task; native is explicit, never a silent fallback. Bundled `looper-routes` is empty so routes must be configured (`assets/.agentflow/ag.json`).
+`looper.md#prepare-and-route`: fresh short-lived external sessions per task; native is explicit, never a silent fallback. Since 9.1.0 the bundled template sets Codex CLI routes and new configurations fill routes from detected `codex`/`claude` CLIs (`setup.md#detected-worker-defaults`); existing empty routes still require owner-authorized configuration.
 
-## D18. Claude leads planning, Codex challenges — [Documented]
+## D18. Blind dual drafting, Codex final synthesis — [Documented]
 
-`review.md#planning-routes` and `#3ways-compare-before-implementation`; CHANGELOG 0.3.1 "Claude-first plan-order". Rationale beyond preference is not stated.
+Changed in 9.1.0 (was "Claude leads planning, Codex challenges", CHANGELOG 0.3.1). `review.md#planning-routes` and `#3ways-compare-before-implementation`: worker planning prefers a Claude draft then Codex challenge and synthesis; on every route using Codex, Codex owns final planning content; `3ways` requires blind Claude/Codex drafts, reciprocal debate and Codex synthesis, with dissent recorded rather than vetoing. Simple work plans directly in the host (CHANGELOG 9.1.0). Rationale beyond the CHANGELOG is not stated.
 
 ## D19. Spawned agents are isolated from user config — [Implemented]
 
@@ -94,6 +94,14 @@ Commit messages `release: aglite @ <sha>` / `release: agentflow @ <sha>` and CHA
 ## D22. Rename to `agentflow` keeps looper runtime identifiers — [Documented]
 
 CHANGELOG 9.0.0: the looper "retains its bounded runtime and stored identifiers". `aglite-*` branches/worktrees, `.aglite-records/`, `aglite-target-*.owner` and `aglite runner` remain in `looper.js` / `looper-integration.js`. Rationale (inferred): existing queues, claims and worktrees stay recognizable across the rename.
+
+## D23. Terminal feature CLI is a second bounded runtime exception — [Documented] + [Implemented]
+
+CHANGELOG 9.1.0; `references/features.md#terminal-cli`, `SKILL.md#load-only-the-applicable-procedure`. Feature lifecycle commands may run as Node code (`scripts/feature*.js`) but do not reuse the looper coordinator, read main's root notebook or migrate config, and grant no hooks, background services or publication. Caller cwd changes only through the validated `AGF_CD_FILE` channel of a reviewed generated shell function; existing bindings are never auto-upgraded (`setup.md#agf-command-setup`).
+
+## D24. Looper reports are derived, never authoritative — [Documented] + [Implemented]
+
+`looper.md#progress-and-results`: `results.md` and `evidence/run-*.txt` are snapshots; `queue.json` alone owns execution. Report save failures only warn (`agf.js:main`, `looper-report.js:save_report`).
 
 ## Unknowns
 

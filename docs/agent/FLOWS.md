@@ -8,6 +8,8 @@ Flows 1–4 are executed by the host following prompts (no code, no automated te
 
 Trigger: owner message in a host that loaded `SKILL.md`.
 
+Pre-step (9.1.4, `SKILL.md` preamble): text after an unquoted `eli5:` through message end is set aside as explanation data before marker/command detection; steps 1–6 apply only to the preceding instructions, and `references/eli5.md` loads after routing (FEATURES F16).
+
 1. Off-record check: unquoted `nolog:` / `noop:` / `off:` / `skip:` → answer in chat, no notebook access (`SKILL.md#route-before-records` step 1).
 2. Isolated looper task? Apply coordinator-supplied overrides (step 2; see flow 6 prompt).
 3. Verify physical directory, Git root/branch/worktrees; read `references/configuration.md`; reread live `ag.json` (step 3).
@@ -186,9 +188,11 @@ Trigger: owner runs `agf init [--lang <locale>]` in a shell, or the host runs it
 
 ```
 agf.js:main            argv must be exactly `init` or `init --lang <tag>`; else usage, exit 1, no writes
-→ init.js:initialize   Node ≥ 20; physical cwd; feature-common.js:discover (absent allowed); repository()
+→ init.js:initialize   Node ≥ 20; physical cwd
+→ locale(lang)         --lang or OS locale; en/zh-TW kept, other zh → zh-tw, other valid → en-us, malformed → stop
+→ feature-common.js:discover(absent allowed, diagnosticLocale)   ambiguous/unresolved → bounded en/zh-TW warning, stop
+→ repository()
 → config exists?       no .owner/symlinks under ag-dir + complete() → "Already initialized", exit 0, no changes
-→ locale(lang)         en/zh-TW kept, other zh → zh-tw, other valid → en-us, malformed → stop
 → scan()               existing devlog/archive/backlog/registry/.owner/.agentflow/.aglite-records → stop
 → AGENTS checks, detect() routes, preflight (recorded history, Git identity, git init if non-Git, check-ignore)
 → mkdir .agentflow + write .init-pending.owner (wx)        reservation = interruption marker
@@ -200,7 +204,7 @@ agf.js:main            argv must be exactly `init` or `init --lang <tag>`; else 
 
 Any error after the reservation keeps `.init-pending.owner` and appends a host-reconciliation hint (exit 1); the next host activation must reconcile it before setup/idle/claim (flow 1 step 5). After success the host rereads `use-lang`, claims A-002 and finishes binding, release-check and delivery duties.
 
-Tests: `scripts/init.test.js` ("unborn Git bootstrap, generated-only commit …", "complete custom canonical setup remains byte/index/HEAD no-op", "bootstrap failure retains explicit partial reservation …", "concurrent real processes cannot compete for scaffolds", "CLI validates init arguments before writes").
+Tests: `scripts/init.test.js` ("unborn Git bootstrap, generated-only commit …", "complete custom canonical setup remains byte/index/HEAD no-op", "bootstrap failure retains explicit partial reservation …", "concurrent real processes cannot compete for scaffolds", "CLI validates init arguments before writes", "discovery warning explains parent-directory risk with bounded examples in both languages").
 
 ## Error propagation summary
 
@@ -214,4 +218,5 @@ Tests: `scripts/init.test.js` ("unborn Git bootstrap, generated-only commit …"
 | report save failure (`results.md` / `evidence/run-*.txt`) | warning on stderr; exit code and scheduling unchanged |
 | `run --cleanup` cleanup failure after task success | both reported; exit 1; retry with `agf looper cleanup` |
 | feature CLI error | message + retained-state/recovery hint on stderr; exit 1; no cwd change |
+| config discovery ambiguity (`feature-common.js:discover`, used by `agf init` and the feature CLI) | bounded multi-line warning (checked dir, counts, ≤ 3 examples, next actions) before any write; exit 1 |
 | `agf init` error | message on stderr, exit 1; after reservation `.init-pending.owner` is retained for host reconciliation (never deleted or retried automatically) |

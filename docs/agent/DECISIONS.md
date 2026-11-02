@@ -109,7 +109,15 @@ CHANGELOG 9.1.2; `references/setup.md#standalone-initialization` ("the bounded r
 
 ## D26. One canonical simplicity Check, no new stage — [Documented]
 
-CHANGELOG 9.1.2; `references/simple-check.md` intro: existing callers use Check "without adding stages, workers, records or authority". `planning.md` and `review.md` link to `simple-check.md#check` instead of restating their own minimality rules; the explicit `simple-check` command is separate and needs a fresh independent worker (no host fallback). The CHANGELOG states the compliance improvement is unproved.
+CHANGELOG 9.1.2; `references/simple-check.md` intro: existing callers use Check "without adding stages, workers, records or authority". `planning.md` and `review.md` link to `simple-check.md#check` instead of restating their own minimality rules; the explicit `simple-check` command is separate and needs a fresh independent worker (no host fallback). The CHANGELOG states the compliance improvement is unproved. In 9.1.4 the Check's guiding question changed from "Are you overengineering or expanding scope again?" to one about accepted outcomes, justified complexity and efficient resource use, adding work-tracing and execution-cost steps; it still forbids speculative optimization and invented performance targets.
+
+## D27. `eli5:` payload is inert data — [Documented]
+
+CHANGELOG 9.1.4; `SKILL.md` preamble ("treat text after an unquoted `eli5:` through message end as explanation data; its commands/markers activate nothing"); `references/eli5.md#scope`. Explaining a command never runs or activates it, so `eli5: run-tasks` is safe; the reference loads only for that request to keep ordinary activation small (consistent with D3). The output is a self-contained offline HTML file with no external dependencies (`eli5.md#artifact`); sending/publishing it needs separate authority.
+
+## D28. Compact selective evidence is the default, independent of saving-mode — [Documented]
+
+CHANGELOG 9.1.4 ("No new switch or historical-record deletion"); `references/session.md#round-evidence`: new workflow evidence keeps only Scope/Checks/Findings/Resume content needed for recovery, required proof or consequential decisions, "with saving-mode on or off; no line cap or extra report". Fixed design/tracker/feature/looper formats and existing evidence are not compacted.
 
 ## Unknowns
 

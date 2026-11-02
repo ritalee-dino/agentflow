@@ -7,9 +7,9 @@ Routing page for AI coding agents working **on this repository** (the agentflow 
 | Question type | Read |
 | --- | --- |
 | What is this repo, layout, commands, tests, release shape | [CODEBASE.md](CODEBASE.md) |
-| Layers, module boundaries, how prompts and the Node looper relate, persistence, external CLIs | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Layers, module boundaries, how prompts and the Node runtime (looper, terminal feature CLI) relate, persistence, external CLIs | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | "Where is feature X defined/implemented?", "What files does X touch?" | [FEATURES.md](FEATURES.md) |
-| Step-by-step runtime behavior (activation, notebook claim, feature worktrees, looper run/integration/recovery) | [FLOWS.md](FLOWS.md) |
+| Step-by-step runtime behavior (activation, notebook claim, feature worktrees, looper run/integration/recovery/cleanup, terminal feature CLI) | [FLOWS.md](FLOWS.md) |
 | Meaning of a term (Ask, devlog, claim, run-root, ag-dir, fast-lane, …) | [GLOSSARY.md](GLOSSARY.md) |
 | Why something is designed the way it is | [DECISIONS.md](DECISIONS.md) |
 
@@ -17,7 +17,7 @@ Routing page for AI coding agents working **on this repository** (the agentflow 
 
 1. Pick one or two documents from the table; do not load all of them by default.
 2. Follow the file/symbol references to the current source (`skills/agentflow/...`).
-3. For behavior of the Node looper, confirm against `skills/agentflow/scripts/*.js` and the matching test in `skills/agentflow/scripts/looper.test.js` or `looper-copilot.test.js`.
+3. For behavior of the Node runtime, confirm against `skills/agentflow/scripts/*.js` and the matching `skills/agentflow/scripts/looper*.test.js` (looper) or `feature*.test.js` (terminal feature CLI).
 4. For workflow behavior (prompt-defined), the authority is the Markdown under `skills/agentflow/SKILL.md` and `skills/agentflow/references/`. Quote section anchors, not line numbers.
 5. If a document here disagrees with source, trust source, mention the discrepancy, and update the document when the change is architectural.
 

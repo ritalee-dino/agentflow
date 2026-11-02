@@ -2,9 +2,9 @@
 
 ## Purpose
 
-Agentflow 9 (skill/plugin/package name `agentflow`, version `9.0.0`; the 9.0.0-beta.1 prerelease was named aglite) is an **AI-agent skill**: a set of Markdown instructions that a coding assistant (Claude Code, Codex, Copilot, other hosts that support skills) loads to keep development work resumable. It gives a project a persistent "notebook" (devlog) where owner requests, decisions, answers and recovery pointers are saved, plus proportionate planning, review routing, Git delivery and isolated feature worktrees.
+Agentflow 9 (skill/plugin/package name `agentflow`, version `9.1.0`; the 9.0.0-beta.1 prerelease was named aglite) is an **AI-agent skill**: a set of Markdown instructions that a coding assistant (Claude Code, Codex, Copilot, other hosts that support skills) loads to keep development work resumable. It gives a project a persistent "notebook" (devlog) where owner requests, decisions, answers and recovery pointers are saved, plus proportionate planning, review routing, Git delivery and isolated feature worktrees.
 
-A small optional Node.js runtime (the **looper**, CLI `agf`) executes a prepared queue of task groups in parallel Git worktrees, each task in a fresh agent session, and serially integrates results.
+A small optional Node.js runtime behind one CLI, `agf`, has two bounded parts: the **looper** (`agf looper …`) executes a prepared queue of task groups in parallel Git worktrees, each task in a fresh agent session, and serially integrates results; the **terminal feature CLI** (`agf new-feature|merge-feature|drop-feature`, added in 9.1.0) runs the feature-worktree lifecycle from a shell.
 
 Users: a human "owner" talking to a coding assistant ("host"). The host is the actual executor of almost all behavior; the repository mostly contains instructions for it.
 
@@ -13,8 +13,8 @@ Users: a human "owner" talking to a coding assistant ("host"). The host is the a
 - Start/resume work with `godev` (records saved in `<ag-dir>/<notebook-name>`).
 - Task modes: `fast-lane`, `skip-review`, `grill-me`, `3ways`, `advisors:`, `browfield`.
 - Stage later batches with `append-rounds` / `append-tasks`.
-- Feature worktrees: `new-feature`, `merge-feature`, `drop-feature`.
-- Grouped parallel execution: `prepare-tasks`, `run-tasks`, `handle-tasks` → `agf loop run|status`.
+- Feature worktrees: `new-feature`, `merge-feature`, `drop-feature` (host chat commands), or the terminal equivalents `agf new-feature|merge-feature|drop-feature` (aliases `newft`/`mergeft`/`dropft`).
+- Grouped parallel execution: `prepare-tasks`, `run-tasks`, `handle-tasks` → `agf looper run|status`; explicit post-run cleanup via `agf looper cleanup` or `run --cleanup`.
 - Configuration migration from older Agentflow 8 / earlier agentflow schemas (9–12, `aglite-5`) to schema 13.
 
 ## Technology stack
@@ -22,8 +22,9 @@ Users: a human "owner" talking to a coding assistant ("host"). The host is the a
 - Markdown prompt files (the main "code").
 - Node.js ≥ 20 (`skills/agentflow/package.json` `engines`), CommonJS, **zero npm dependencies**; only `node:` built-ins.
 - Tests: built-in `node:test` runner.
-- Git (worktrees, merge, plumbing) is required for features and the looper.
-- External agent CLIs launched by the looper: `codex`, `claude`, `copilot`.
+- Git (worktrees, merge, plumbing) is required for features and the looper; the feature CLI merge needs Git ≥ 2.38 (`merge-tree --write-tree`).
+- External agent CLIs launched by the looper: `codex`, `claude`, `copilot`. The feature CLI launches `codex exec` only to resolve actual merge conflicts (`scripts/feature-merge.js:merge`).
+- Recoverable deletion: macOS `/usr/bin/trash` + `~/.Trash` (looper cleanup, feature CLI cleanup/claim disposal); Windows feature cleanup deletes directly; Linux is refused.
 - Distribution: Claude Code plugin manifest (`.claude-plugin/`) and Vercel Skills CLI (`npx skills add agfnow/agentflow --skill agentflow`). Agentflow 8 stays at `agfnow/agentflow-v8`.
 
 ## Repository layout
@@ -40,9 +41,9 @@ skills/agentflow/           the shipped skill
   assets/.agentflow/     templates: ag.json, devlog.md, backlog.md, sys-invariants.md, .gitkeep dirs
   assets/looper-groups.example.json   queue.json schema 2 example
   docs/                  human guides: AG-GUIDE.md, AG-GUIDE.tw.md, CHEATSHEET.md, CHEATSHEET.tw.md,
-                         agv8-aglite-comparison.md (Agentflow 8 → 9 differences)
+                         agv8-agv9-comparison.md (Agentflow 8 → 9 differences)
   package.json           @agfnow/agentflow, bin agf, test script
-  scripts/               Node looper runtime + tests
+  scripts/               Node runtime (looper + feature CLI) + tests
 docs/agent/              this knowledge base (not shipped as part of the skill)
 ```
 
@@ -57,57 +58,80 @@ docs/agent/              this knowledge base (not shipped as part of the skill)
 | `skills/agentflow/references/work.md` | Task modes, execution, RUN/WIP checkpoints, diff handling. |
 | `skills/agentflow/references/planning.md` | Design/tracker criteria, `plan-mode`, gates. |
 | `skills/agentflow/references/review.md` | Worker settings, bounded assignment, planning routes, result review, `3ways`. |
-| `skills/agentflow/references/features.md` | `new-feature`/`merge-feature`/`drop-feature`. |
+| `skills/agentflow/references/features.md` | `new-feature`/`merge-feature`/`drop-feature`; `#terminal-cli` owns the `agf` feature commands. |
 | `skills/agentflow/references/looper.md` | Looper contract (owns execution behavior). |
 | `skills/agentflow/scripts/looper.js` | Coordinator: `run`, `status`, queue validation, settings selection. |
 | `skills/agentflow/scripts/looper-agent.js` | Process launching, CLI argument building, result parsing, checks. |
 | `skills/agentflow/scripts/looper-state.js` | Safe paths, atomic JSON, claims, process identity. |
 | `skills/agentflow/scripts/looper-integration.js` | Git operations: group worktrees, task commits, integration, landing. |
-| `skills/agentflow/scripts/agf.js` | CLI entry `agf loop run|status`. |
+| `skills/agentflow/scripts/looper-cleanup.js` | Explicit completed-run cleanup (Trash, compaction to queue/request/plans). |
+| `skills/agentflow/scripts/looper-report.js` | Progress lines, heartbeat, terminal summary, `results.md` / `evidence/run-*.txt` reports, en/zh-TW dictionary. |
+| `skills/agentflow/scripts/feature.js` | Feature CLI `create` (new-feature) and `drop`. |
+| `skills/agentflow/scripts/feature-merge.js` | Feature CLI `merge` (scoped merge, checks, conflict resolver, retirement, delivery). |
+| `skills/agentflow/scripts/feature-common.js` | Shared feature CLI helpers: context/identity, config discovery, claims, Trash, `retire`. |
+| `skills/agentflow/scripts/feature-shell.js` | `agf shell` function generator and the `AGF_CD_FILE` destination channel. |
+| `skills/agentflow/scripts/agf.js` | CLI entry: `agf looper run|status|cleanup`, feature commands, `agf shell`. |
 
 ## Entry points
 
 - **Prompt entry**: `skills/agentflow/SKILL.md` (frontmatter `name: agentflow`, trigger words in `description`). Hosts load it on trigger words like `godev`.
-- **CLI entry**: `skills/agentflow/scripts/agf.js` → `looper.js:run` / `looper.js:status`. Registered as `agf` via `npm install -g <resolved-skill>`.
-- **Library exports**: `looper.js` exports `run, status, load, validate, task_text, ordinary_closeout, read_settings, select, counterpart` (used by tests).
+- **CLI entry**: `skills/agentflow/scripts/agf.js:main` → `looper.js:run` / `status`, `looper-cleanup.js:cleanup`, `feature.js:create` / `drop`, `feature-merge.js:merge`, `feature-shell.js:binding`. Made callable as `agf` either by the shell function that first-time setup generates (`references/setup.md#agf-command-setup`, from `agf shell <zsh|bash|powershell>`) or by `npm install -g <resolved-skill>`.
+- **Library exports**: `looper.js` exports `run, status, load, validate, task_text, ordinary_closeout, read_settings, select`; `agf.js` exports `main(args, io)` with injectable IO for tests.
 
 ## Commands
 
 Run from `skills/agentflow/`:
 
 ```sh
-npm test                      # node --test scripts/looper.test.js scripts/looper-copilot.test.js
-node scripts/agf.js loop status <run-root>
-node scripts/agf.js loop run <run-root>
+npm test                      # node --test over all 8 scripts/*.test.js files (list in package.json)
+node scripts/agf.js looper status <run-root>
+node scripts/agf.js looper run <run-root> [--cleanup]
+node scripts/agf.js looper cleanup <run-root>
+node scripts/agf.js new-feature <name> [--open]
+node scripts/agf.js merge-feature [name] [--cleanup] [--include <path>] [--check '["cmd","arg"]']
+node scripts/agf.js drop-feature [name] [--abandon]
+node scripts/agf.js shell <zsh|bash|powershell>
 ```
 
 There is no build step, linter config or CI configuration in this repository.
 
-Tests create real temporary Git repositories and spawn processes; many have 30 s timeouts. One POSIX-only test is skipped on Windows; symlink tests also skip (via `symlink_or_skip`) when Windows symlink privilege is unavailable.
+Tests create real temporary Git repositories and spawn processes; many have 30 s timeouts. On Windows, POSIX- and macOS-only tests skip, and tests using `symlink_or_skip` skip without symlink privilege; other symlink tests fail instead (see below). A full Windows run takes about 27 minutes.
 
 ## Configuration
 
-- Consumer-project config: `<checkout>/<ag-dir>/ag.json`, schema 13 (the target schema is whatever `schema-version` the bundled template holds; `looper.js` reads it as `current_schema`). Template: `skills/agentflow/assets/.agentflow/ag.json`. Keys: `switches` (on/off switches, `plan-mode`, `plan-order`, `review-order`, `use-lang`, `ag-dir`, `notebook-name`), `pipeline-roles`, `model-family`, `external-workers`, optional `native-workers`, `looper-routes`, `looper-limits`, `next_update_date`. `switches.saving-mode` (`on|off`) is required since schema 13: hosts add `off` only when absent; the looper refuses missing/invalid values.
+- Consumer-project config: `<checkout>/<ag-dir>/ag.json`, schema 13 (the target schema is whatever `schema-version` the bundled template holds; `looper.js` reads it as `current_schema`). Template: `skills/agentflow/assets/.agentflow/ag.json`. Keys: `switches` (on/off switches, `plan-mode`, `plan-order`, `review-order`, `use-lang`, `ag-dir`, `notebook-name`), `pipeline-roles`, `model-family`, `external-workers`, optional `native-workers`, `looper-routes`, `looper-limits`, `next_update_date`, optional top-level `default-editor` (default `vscode` → runs `code`; used by `agf new-feature --open`). `switches.saving-mode` (`on|off`) is required since schema 13: hosts add `off` only when absent; the looper refuses missing/invalid values.
 - Defaults are defined in prose in `references/configuration.md#discovery-and-validation`. Note: the template sets `omit-wip: off` while the documented default when the key is absent is `on` (the cheatsheet states both).
+- The bundled template's `looper-routes` now sets `task`/`repair`/`acceptance` to Codex CLI (`openai` catalog); new configurations replace these with detected defaults (`references/setup.md#detected-worker-defaults`), existing configs keep theirs.
 - Looper queue: `<run-root>/queue.json`, schema 2 (`references/looper.md#schema-and-inputs`).
-- Environment variables read by code: `CODEX_SANDBOX_NETWORK_DISABLED` (`looper-agent.js:launch_agent`), `SystemRoot`/`WINDIR` (`looper-state.js:powershell`), `PATH`/`PATHEXT` (`looper-agent.js:resolve_command`), Copilot credential/provider variables allow-listed in `looper-agent.js:copilot_environment`.
+- Environment variables read by code: `CODEX_SANDBOX_NETWORK_DISABLED` (`looper-agent.js:launch_agent`), `SystemRoot`/`WINDIR` (`looper-state.js:powershell`), `PATH`/`PATHEXT` (`looper-agent.js:resolve_command`), Copilot credential/provider variables allow-listed in `looper-agent.js:copilot_environment`, `AGF_CD_FILE` / `AGF_CD_HINT` (`agf.js:main`, set by the generated shell function).
 
 ## Testing structure
 
 - `skills/agentflow/scripts/looper.test.js` — coordinator, Git integration, recovery, settings, Windows path/process handling.
 - `skills/agentflow/scripts/looper-copilot.test.js` — CLI argument construction and Copilot/Claude result parsing.
+- `skills/agentflow/scripts/looper-agent.test.js` — provider launch failures: `failure.json` diagnostics and evidence identity, missing executables, result failures on exit 0.
+- `skills/agentflow/scripts/looper-report.test.js` — progress/heartbeat formatting, summaries, saved reports, locale.
+- `skills/agentflow/scripts/looper-cleanup.test.js` — explicit cleanup preconditions, Trash identity proofs, crash/retry.
+- `skills/agentflow/scripts/feature.test.js`, `feature-merge.test.js`, `feature-shell.test.js` — feature CLI create/drop, merge/recovery, shell bindings and cd channel.
 - Prompt behavior (SKILL.md/references) has **no automated tests** in this repo.
 
-### Known Windows test failures (9.0.0)
+### Known Windows test failures (9.1.0)
 
-Observed on native Windows (2026-10-27: 102 tests, 95 pass, 3 fail, 4 skipped). Both causes are test-side; the runtime behaves as designed. CHANGELOG 9.0.0 states release evidence covers macOS only, with native Windows a separately stated limit.
+Observed on native Windows with a zh-TW OS locale (2026-10-29, full `npm test`: 305 tests, 207 pass, 65 fail, 8 cancelled, 25 skipped, ~27 min). CHANGELOG 9.1.0 states recorded checks cover packaged tests and representative macOS host journeys; native Windows keeps its stated limits. Causes were grouped from the failure messages; only the locale cause was re-run to confirm.
 
-| Test in `looper.test.js` | Cause |
-| --- | --- |
-| `invalid request files fail before claims or worktrees` → subtest `inline` (fails the parent too) | The inline request text ends with `.`; on Windows `looper-state.js:inspect_path` (`windows_component`) rejects trailing-dot components with `Unsafe Windows path component` before the stat that would yield the expected `ENOENT`. |
-| `process enumeration failure makes execution unsettled and preserves recorded process evidence` | Race: the child lives 150 ms, but on Windows `looper-state.js:process_identity` spawns PowerShell (`Get-CimInstance Win32_Process`), measured at ~440–1190 ms, so the child has exited and `started_at` is `null`. Real agent CLIs outlive the query. |
+| Cause | Affected tests (examples) | Status |
+| --- | --- | --- |
+| OS locale fallback: `looper-report.js:resolve_locale` uses `Intl` OS locale when `use-lang` is absent, so presentation is zh-TW while tests expect English | `looper-report.test.js` (e.g. "invocation error cannot be masked …"), CLI presentation tests in `looper.test.js` (e.g. "presentation observes a real checked integration …") | **Confirmed**: forcing an `en-US` `Intl` locale cut `looper-report.test.js` failures from 15 to 7 |
+| POSIX path expectations (`/work/...`) vs backslash paths | remaining `looper-report.test.js` failures (e.g. "original six-task blocked example …") | Inferred from assertion text |
+| No symlink privilege (`EPERM` from `fs.symlinkSync`; these tests do not use `symlink_or_skip`) | `feature-merge.test.js` "ordinary symlink, executable mode, rename …", `feature-shell.test.js` "destination channel rejects links …", `feature.test.js` "ignored-only data, locks and symlink target …" | Confirmed from error |
+| Windows command resolution refuses `npm.CMD` and extensionless stubs (`looper-agent.js:resolve_command`, by design per `references/windows.md#javascript-looper`) | `feature-merge.test.js` npm fallback and conflict-resolver tests | Confirmed from error; runtime behaves as documented |
+| `git worktree` registration comparison fails in cleanup (`Worktree registration missing, foreign or locked`, `looper-cleanup.js:cleanup`) | almost all of `looper-cleanup.test.js` | Inferred path-format mismatch; cleanup is macOS-only by contract, so this is an unsupported path rather than a shipped regression |
+| Characters invalid in Windows filenames used as test data (`ENOENT` on `mkdir`) | `feature-merge.test.js` "literal multiline check arguments …" | Confirmed from error |
+| 30 s test timeouts on slower Windows process/Git operations (children then cancelled) | "dependency graphs start from checked integrated files …", "dependent starts against latest forward target …", several "ordinary review …" native tests | Confirmed timeouts; root cause not investigated |
+| Carried over from 9.0.0: trailing-dot inline request (`looper-state.js:inspect_path` rejects it before the expected `ENOENT`); 150 ms child vs ~0.4–1.2 s PowerShell `process_identity` race | "invalid request files fail before claims or worktrees" → `inline`; "process enumeration failure makes execution unsettled …" | Confirmed (9.0.0 analysis) |
+| Others (Git Bash path in the bash wrapper test, missing-provider launch test) | `feature-shell.test.js` "bash preserves argv/output/status …", `looper-agent.test.js` "missing provider executable …" | Not investigated |
 
-Do not treat these as regressions when they appear on Windows. Fixes belong in the tests (upstream, see [DECISIONS.md](DECISIONS.md) D20).
+Do not treat these as regressions without checking the category. Test-side fixes belong upstream (see [DECISIONS.md](DECISIONS.md) D20). Run with an English OS locale to reduce presentation noise.
 
 ## Release shape
 

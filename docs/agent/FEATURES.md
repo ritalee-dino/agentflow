@@ -21,7 +21,7 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 - **Trigger**: any on-record work.
 - **Definition**: `references/session.md#activate-and-recover`, `#notebook-ownership`, `#round-evidence`; rendering in `references/delivery.md#notebook-and-delivery`.
 - **Persistence**: `<ag-dir>/<notebook-name>`, `.<notebook>.owner`, `<ag-dir>/.tmp/A-NNN.md`, `<ag-dir>/artifacts/A-NNN/`. Template `assets/.agentflow/devlog.md`.
-- **Rules worth knowing**: claim via exclusive create (`wx`); late conflicts retry after 60/120/180 s; owner messages captured with `+ ` prefix; receipt `→ Updated: A-NNN | <notebook>`; archive above 750 lines.
+- **Rules worth knowing**: claim via exclusive create (`wx`); late conflicts retry after 60/120/180 s; owner messages captured with `+ ` prefix; receipt `→ Updated: A-NNN | <notebook>`; archive above 750 lines. New workflow evidence (9.1.4, `session.md#round-evidence`) is compact and selective by default, with saving-mode on or off: ordered fields Scope, Checks, Findings, Resume, empty fields omitted, no file when nothing needs retaining; routine output/transcripts are omitted, fixed design/tracker/feature/looper formats and old evidence are untouched.
 - **Code dependency**: the looper parses the same Ask/Reply heading shape in `scripts/looper.js:notebook_rounds` / `ordinary_closeout` (tests: "ordinary closeout …", "CRLF task and closeout readers …").
 
 ## F3. Configuration (`ag.json`) and migration
@@ -46,16 +46,18 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 - **Command**: `agf init [--lang <locale>]`, or `node <skill>/scripts/agf.js init …` without a binding.
 - **Contract**: `references/setup.md#standalone-initialization`; locale fallback in `references/configuration.md#discovery-and-validation` (use-lang bullet); recovery gate in `SKILL.md#route-before-records` step 5.
 - **Entry**: `scripts/agf.js:main` (validates `init` argv before any write) → `scripts/init.js:initialize`.
+- **Discovery stop (9.1.4)**: ambiguous or unresolved configuration discovery (`feature-common.js:discover` with `diagnosticLocale: locale(lang)`) fails before any write with a bounded en/zh-TW warning naming the checked directory, counts, ≤ 3 examples, and the "cd into the target project / ask your AI host; do not delete files" next steps. Without `--lang` the OS locale decides the message language.
 - **Behavior**: runs at the physical Git root only (or `git init`s a non-Git cwd); refuses nested folders, linked worktrees, bare repos, `feature/*` branches, Git locks or in-progress operations, unborn repos with refs, existing records/claims, staged/modified/untracked AGENTS changes, ignored generated paths and missing commit identity. A complete existing setup (incl. custom ag-dir/notebook-name) is a byte-for-byte no-op. Locale: `en*`, `zh`, `zh-tw`, `zh-hant*` kept; other `zh-*` → `zh-tw`; other valid tags → `en-us`; malformed tags stop (`init.js:locale`). Routes: first of `codex`/`claude` answering `--version`, else empty; always empty on Windows (`init.js:detect`).
 - **Persistence**: `.agentflow/ag.json`, notebook (program A-001 recording the invocation + empty A-002), `backlog.md`, empty `sys-invariants.md`, `.gitkeep` in `artifacts/`, `features/`, `.tmp/`, root `AGENTS.md` directives; marker `.agentflow/.init-pending.owner` retired to `.git/agf-init-completed-<uuid>.json`.
 - **Side effects**: optional empty bootstrap `chore: initialize repository`; with `auto-commit: on` one `chore: initialize agentflow` commit of generated paths only (`git commit --only`), hooks disabled; no push.
-- **Tests**: `scripts/init.test.js`.
+- **Tests**: `scripts/init.test.js` (incl. "discovery warning explains parent-directory risk with bounded examples in both languages", "discovery warning retains ambiguity and malformed-config stops without exposing contents").
 
 ## F5. Task modes and execution
 
 - **Commands**: `fast-lane`, `skip-review`, `grill-me`, `browfield`, `show-diff`.
 - **Definition**: `references/work.md#task-modes`, `#execute-and-checkpoint`, `#diff-handling`; `references/browfield.md`.
 - **Records**: RUN/WIP entries controlled by `omit-run` / `omit-wip`.
+- **Browser checks**: affected web journeys/requested end-to-end checks read `references/browser-testing.md` before tool selection (routed from `SKILL.md#load-only-the-applicable-procedure` and `references/project-rules.md`). Since 9.1.4 Stagehand/`browse` routes are kept regardless of browser plugin presence, and their help, dependencies and startup must be inspected before reporting browser access unavailable.
 
 ## F6. Planning, designs, trackers and gates
 
@@ -75,7 +77,7 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 
 - **Command**: unquoted `simple-check [target]` (also a `SKILL.md` trigger word).
 - **Definition**: `references/simple-check.md` (`#command`, `#check`, `#result`).
-- **Behavior**: reviews a named or unambiguous active existing plan with a fresh independent read-only worker on the `acceptance` route; no host fallback (→ BLOCKED), no plan creation, no implementation authority. Returns PASS, REVISE or BLOCKED for the exact revision, saved in existing review evidence/answer locations.
+- **Behavior**: reviews a named or unambiguous active existing plan with a fresh independent read-only worker on the `acceptance` route; no host fallback (→ BLOCKED), no plan creation, no implementation authority. Returns PASS, REVISE or BLOCKED for the exact revision, saved in existing review evidence/answer locations. Since 9.1.4 the Check also traces representative work and challenges execution cost (duplicated context, recomputation, repeated I/O, serial independent steps), and PASS requires supported material inefficiencies to be addressed.
 - **Tests**: none (prompt).
 
 ## F8. Advisors
@@ -118,7 +120,7 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 - **Commands**: `agf new-feature <name> [--open]` (`newft`), `agf merge-feature [name] [--cleanup] [--include <path>]… [--check '<JSON argv>']…` (`mergeft`), `agf drop-feature [name] [--abandon]` (`dropft`), `agf shell <zsh|bash|powershell>`. Merge/drop infer the name only inside their own feature checkout.
 - **Contract**: `references/features.md#terminal-cli`, `#terminal-directory-transition`; shell function setup `references/setup.md#agf-command-setup`; Windows `references/windows.md#feature-cli`; `default-editor` in `references/configuration.md#discovery-and-validation`.
 - **Entry**: `scripts/agf.js:main` (argv validation, SIGINT/SIGTERM → `AbortController`) → `scripts/feature.js:create` / `drop`, `scripts/feature-merge.js:merge`.
-- **Behavior**: never reads main's root notebook/archive/claim; claims are random-UUID markers, not PID-owned; requires Node ≥ 20 and Git (merge: ≥ 2.38). Merge checks: explicit `--check`, else the candidate `package.json` test, else none (reported as such); each check/resolver has a 10-minute limit. Conflicts go to `codex exec` in the candidate checkout, restricted to conflict paths. Honors `auto-commit` / `auto-push`; `gate-design` / `gate-tracker` on → stop for host continuation.
+- **Behavior**: never reads main's root notebook/archive/claim; claims are random-UUID markers, not PID-owned; requires Node ≥ 20 and Git (merge: ≥ 2.38). Merge checks: explicit `--check`, else the candidate `package.json` test, else none (reported as such); each check/resolver has a 10-minute limit. Conflicts go to `codex exec` in the candidate checkout, restricted to conflict paths. Honors `auto-commit` / `auto-push`; `gate-design` / `gate-tracker` on → stop for host continuation. Ambiguous config discovery stops with the same bounded warning as `agf init`, always in English here (test: "configuration refuses ambiguity, unsafe routing …" in `feature.test.js`).
 - **Persistence**: feature notebook; `merge-state.json` / `snapshot-state.json` / `intake-state.json` and a `.merge-*` workspace under `<ag-dir>/features/<name>/`.
 - **Directory switch**: only via the generated shell function's private `AGF_CD_FILE` (destination line + optional hint with `AGF_CD_HINT=1`); direct Node runs print a `cd` / `Set-Location` continuation.
 - **Platforms**: macOS Trash; Windows direct deletion of the exact checkout/claims (best effort, untested natively); Linux refused (`scripts/feature-common.js:preflightClaimDisposal`).
@@ -146,6 +148,15 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 - **Definition**: `references/configuration.md#session-release-check` (checks `agfnow/agentflow` stable releases, writes `next_update_date` = today + 2 days), `references/upkeep.md#approved-installation-replacement`. Eligibility: installed aglite beta or Agentflow 9+ only upgrades to Agentflow 9+ stable releases, never to 8.x.
 - **Distribution metadata**: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `skills/agentflow/package.json`.
 
+## F16. Visual explanations (`eli5:`, 9.1.4)
+
+- **Command**: unquoted `eli5: <topic-or-command>` (also a `SKILL.md` trigger word); quoted examples do not activate it.
+- **Definition**: `references/eli5.md` (`#scope`, `#artifact`, `#explain-visually`, `#motion`, `#access`, `#review-and-checks`); pre-routing rule in the `SKILL.md` preamble; load rule in `SKILL.md#load-only-the-applicable-procedure`.
+- **Behavior**: everything after `eli5:` is explanation data — embedded commands, modes and markers (incl. `nolog:`) activate nothing; an off-record marker must come before `eli5:`. Output is one self-contained offline HTML file (inline SVG/CSS, minimal JS, system fonts, no network/build/backend) with a large overview, learner-paced steps and accessible controls.
+- **Persistence**: explicit destination, else the ordinary artifact location on-record (`<ag-dir>/artifacts/A-NNN/`), or a unique HTML file in the OS temp directory when off-record (no notebook access).
+- **Review**: ordinary Q&A host review; browser checks of the HTML where available, with unperformed checks reported.
+- **Tests**: none (prompt).
+
 ---
 
 ## "What should I inspect first?" quick list
@@ -157,6 +168,8 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 | A setting's meaning/default | `references/configuration.md#switch-effects`, `docs/CHEATSHEET.md` (zh-TW: `docs/CHEATSHEET.tw.md`) |
 | Fresh project initialization | `references/setup.md#standalone-initialization`, `scripts/init.js:initialize` |
 | Plan simplicity review | `references/simple-check.md` |
+| `eli5:` visual lessons | `references/eli5.md`, `SKILL.md` preamble |
+| Config-discovery stop messages | `scripts/feature-common.js:discover` |
 | Differences from Agentflow 8 | `docs/agv8-agv9-comparison.md`, `references/legacy-migration.md` |
 | Which model/provider a worker uses | `references/review.md#worker-settings`, `scripts/looper.js:select` |
 | Looper scheduling/integration bug | `scripts/looper.js:run` (`task_job`, `integrate`, main `while` loop), `scripts/looper-integration.js` |

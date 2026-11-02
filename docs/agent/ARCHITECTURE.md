@@ -31,7 +31,7 @@ flowchart LR
 
 ## Prompt layer
 
-- **Entrypoint**: `skills/agentflow/SKILL.md`. Sections:
+- **Entrypoint**: `skills/agentflow/SKILL.md`. A preamble paragraph (9.1.4) runs before command/marker detection: text after an unquoted `eli5:` through message end is explanation data, so its commands/markers activate nothing and routing applies only to preceding instructions. Sections:
   - `#route-before-records` — strict precedence: (1) off-record markers, (2) isolated looper task, (3) configuration/routing, (4) feature lifecycle, (5) retained `.init-pending.owner` recovery, then fresh setup or idle shortcut, (6) owned work.
   - `#load-only-the-applicable-procedure` — which reference to load per situation. Design goal: keep the default load small (CHANGELOG 9.0.0-beta.1).
 - **Procedure references** (`skills/agentflow/references/`), each owning one concern:
@@ -46,6 +46,7 @@ flowchart LR
 | `review.md` | worker settings, delegation, planning routes, result review, `3ways` |
 | `simple-check.md` | `simple-check` command (fresh independent read-only plan review → PASS/REVISE/BLOCKED) and the canonical `#check` that `planning.md` and `review.md` apply without adding stages (9.1.2) |
 | `batches.md` | `append-rounds` staging/advancement |
+| `eli5.md` | `eli5:` visual explanations: one self-contained offline HTML lesson (inline SVG/CSS, minimal JS, no network); payload never executes; loaded only for an unquoted `eli5:` request (9.1.4) |
 | `features.md` | feature worktree lifecycle and handoffs; `#terminal-cli` / `#terminal-directory-transition` for the `agf` feature commands |
 | `looper.md` | looper contract (authoritative for runtime behavior) |
 | `setup.md` | first-time setup, AGENTS.md adoption in consumer projects, `#agf-command-setup` (generated `agf` shell function), `#detected-worker-defaults` (looper routes from detected `codex`/`claude`), `#empty-bootstrap` (one empty commit for repos without HEAD), `#standalone-initialization` (`agf init` contract and `.init-pending.owner` recovery) |
@@ -115,6 +116,8 @@ Separate from the looper; only the `agf` launcher and some helpers are shared.
 | `feature.js` | `new-feature` (worktree add, notebook scaffold/resume, inherited config copy, optional `--open` editor) and `drop-feature` | `create`, `drop`, `scaffold`, `resumePreparation` |
 | `feature-merge.js` | `merge-feature`: snapshot/commit named dirty paths (`--include`), scoped candidate via temporary index + `merge-tree --write-tree`, `codex exec` conflict resolver, checks (10 min each), CAS `update-ref`, retirement records, optional cleanup, auto-commit/auto-push; resumable via `merge-state.json` phases | `merge` |
 | `feature-common.js` | context/identity (main = primary registered worktree, `.wts/ft-<name>`, `feature/<name>`), canonical config discovery without migration, UUID claims, Trash preflight/disposal, `retire` | `context`, `discover`, `claim`, `retire`, `preflightTrash`, `localLifecycleConfig` |
+
+`feature-common.js:discover` stops on zero/multiple candidate configs or unresolved entries (unreadable `ag.json`, symlinks) with a bounded diagnostic (9.1.4): checked directory, counts, at most three relative examples and next actions, in English or Traditional Chinese via its `diagnosticLocale` option (default `en`; only `init.js` passes a locale).
 | `feature-shell.js` | generated zsh/bash/PowerShell `agf` function; `AGF_CD_FILE` destination channel validation/writes | `binding`, `channel`, `destination` |
 
 Dependencies: `feature.js → {feature-common, feature-shell, looper-report}`; `feature-merge.js → {feature-common, feature-shell, looper-report, looper-agent:execute, looper-state:process_alive}`; `feature-common → looper-state` (and `looper-report` for locale support). Generated records support English and Traditional Chinese only; other locales stop before mutation. Platform: macOS uses Trash; Windows deletes the exact checkout/claims directly (best effort); Linux refuses record operations (`feature-common.js:preflightClaimDisposal`).
@@ -137,7 +140,7 @@ Dependencies: `init.js → {feature-common (discover, git with hooks disabled, n
 | `codex --version` / `claude --version` | initializer route detection only (no model call; skipped on Windows) | `init.js:detect` |
 | `copilot` CLI | looper CLI route | `looper-agent.js:launch_agent`, `references/copilot.md` |
 | GitHub releases `agfnow/agentflow` | release check by host every 2 days | `references/configuration.md#session-release-check` |
-| Browserbase `browse` / Stagehand | default browser-test tooling | `references/browser-testing.md` |
+| Browserbase `browse` / Stagehand | default browser-test tooling; CLI/code routes retained independent of any browser plugin/connector (9.1.4) | `references/browser-testing.md` |
 | OS Trash/Recycle Bin | reversible worktree removal (host); macOS `/usr/bin/trash` for looper cleanup and feature CLI | `references/features.md#retire-one-worktree`, `references/windows.md#reversible-cleanup`, `looper-cleanup.js`, `feature-common.js` |
 | Editor (`default-editor`, default `code`) | `agf new-feature --open` | `feature.js:create` |
 

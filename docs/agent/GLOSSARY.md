@@ -25,7 +25,7 @@ Paths are relative to `skills/agentflow/`.
 - **Capture** — copying each owner chat message into the active Ask with `+ ` paragraph prefixes.
 - **Off-record** — exchange marked with `nolog:`/`noop:`/`off:`/`skip:`; executed but not recorded.
 - **Idle shortcut** — bare activation with no unfinished work: ask for next request without claiming.
-- **Round evidence** — workflow proof stored in `<ag-dir>/.tmp/A-NNN.md` or `<ag-dir>/artifacts/A-NNN/`, linked from Current, kept out of the devlog body.
+- **Round evidence** — workflow proof stored in `<ag-dir>/.tmp/A-NNN.md` or `<ag-dir>/artifacts/A-NNN/`, linked from Current, kept out of the devlog body. Since 9.1.4 new evidence uses the compact selective fields Scope → Checks → Findings → Resume, omitting empty fields and routine output (`references/session.md#round-evidence`).
 - **Tracker** — task-state record (`## Tasks` with `T-n`, `## Recovery`); statuses TODO/DOING/BLOCKED/DONE.
 - **Design** — contract record with `## Invariants` (INV-n), `## Acceptance criteria` (AC-n), `## Validation`, `## Minimality check`.
 - **System invariants / registry** — accepted durable guarantees `SYS-INV-n` in `<ag-dir>/sys-invariants.md`.
@@ -44,7 +44,8 @@ Paths are relative to `skills/agentflow/`.
 - **skip-review** — one task with host review only.
 - **grill-me** — requirements interview.
 - **simple-check** — `simple-check [target]`: fresh independent read-only review of an existing plan returning PASS/REVISE/BLOCKED; no host fallback or implementation authority (`references/simple-check.md`, 9.1.2).
-- **Check (canonical)** — the adequacy → scope → subtraction → total burden → proof checklist in `references/simple-check.md#check`, applied by planning and review at their existing checkpoints without adding stages.
+- **eli5:** — `eli5: <topic-or-command>`: one downloadable offline HTML visual lesson; everything after the marker is inert explanation data (`references/eli5.md`, 9.1.4).
+- **Check (canonical)** — the adequacy → scope → subtraction → trace work → execution cost → total burden → proof checklist (trace/cost steps added in 9.1.4) in `references/simple-check.md#check`, applied by planning and review at their existing checkpoints without adding stages.
 - **agf init** — standalone initializer for a fresh Git root (`scripts/init.js`, `references/setup.md#standalone-initialization`).
 - **3ways** — Claude and Codex draft blind, exchange and debate, then Codex writes the final synthesis with dispositions; the host verifies and relays but does not rewrite it (`references/review.md#3ways-compare-before-implementation`, 9.1.0).
 - **browfield** — optional eight-gate brownfield procedure (spelling is intentional in this repo).

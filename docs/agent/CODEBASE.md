@@ -2,16 +2,16 @@
 
 ## Purpose
 
-Agentflow 9 (skill/plugin/package name `agentflow`, version `9.1.0`; the 9.0.0-beta.1 prerelease was named aglite) is an **AI-agent skill**: a set of Markdown instructions that a coding assistant (Claude Code, Codex, Copilot, other hosts that support skills) loads to keep development work resumable. It gives a project a persistent "notebook" (devlog) where owner requests, decisions, answers and recovery pointers are saved, plus proportionate planning, review routing, Git delivery and isolated feature worktrees.
+Agentflow 9 (skill/plugin/package name `agentflow`, version `9.1.2`; the 9.0.0-beta.1 prerelease was named aglite) is an **AI-agent skill**: a set of Markdown instructions that a coding assistant (Claude Code, Codex, Copilot, other hosts that support skills) loads to keep development work resumable. It gives a project a persistent "notebook" (devlog) where owner requests, decisions, answers and recovery pointers are saved, plus proportionate planning, review routing, Git delivery and isolated feature worktrees.
 
-A small optional Node.js runtime behind one CLI, `agf`, has two bounded parts: the **looper** (`agf looper …`) executes a prepared queue of task groups in parallel Git worktrees, each task in a fresh agent session, and serially integrates results; the **terminal feature CLI** (`agf new-feature|merge-feature|drop-feature`, added in 9.1.0) runs the feature-worktree lifecycle from a shell.
+A small optional Node.js runtime behind one CLI, `agf`, has three bounded parts: the **looper** (`agf looper …`) executes a prepared queue of task groups in parallel Git worktrees, each task in a fresh agent session, and serially integrates results; the **terminal feature CLI** (`agf new-feature|merge-feature|drop-feature`, added in 9.1.0) runs the feature-worktree lifecycle from a shell; the **standalone initializer** (`agf init`, added in 9.1.2) creates Git plus the Agentflow scaffold in a fresh root without model calls.
 
 Users: a human "owner" talking to a coding assistant ("host"). The host is the actual executor of almost all behavior; the repository mostly contains instructions for it.
 
 ## Major use cases
 
-- Start/resume work with `godev` (records saved in `<ag-dir>/<notebook-name>`).
-- Task modes: `fast-lane`, `skip-review`, `grill-me`, `3ways`, `advisors:`, `browfield`.
+- Start/resume work with `godev` (records saved in `<ag-dir>/<notebook-name>`); fresh Git roots can also be initialized from a shell with `agf init [--lang <locale>]`.
+- Task modes: `fast-lane`, `skip-review`, `grill-me`, `3ways`, `advisors:`, `browfield`; read-only plan review with `simple-check [target]` (9.1.2).
 - Stage later batches with `append-rounds` / `append-tasks`.
 - Feature worktrees: `new-feature`, `merge-feature`, `drop-feature` (host chat commands), or the terminal equivalents `agf new-feature|merge-feature|drop-feature` (aliases `newft`/`mergeft`/`dropft`).
 - Grouped parallel execution: `prepare-tasks`, `run-tasks`, `handle-tasks` → `agf looper run|status`; explicit post-run cleanup via `agf looper cleanup` or `run --cleanup`.
@@ -43,7 +43,7 @@ skills/agentflow/           the shipped skill
   docs/                  human guides: AG-GUIDE.md, AG-GUIDE.tw.md, CHEATSHEET.md, CHEATSHEET.tw.md,
                          agv8-agv9-comparison.md (Agentflow 8 → 9 differences)
   package.json           @agfnow/agentflow, bin agf, test script
-  scripts/               Node runtime (looper + feature CLI) + tests
+  scripts/               Node runtime (looper + feature CLI + initializer) + tests
 docs/agent/              this knowledge base (not shipped as part of the skill)
 ```
 
@@ -58,6 +58,7 @@ docs/agent/              this knowledge base (not shipped as part of the skill)
 | `skills/agentflow/references/work.md` | Task modes, execution, RUN/WIP checkpoints, diff handling. |
 | `skills/agentflow/references/planning.md` | Design/tracker criteria, `plan-mode`, gates. |
 | `skills/agentflow/references/review.md` | Worker settings, bounded assignment, planning routes, result review, `3ways`. |
+| `skills/agentflow/references/simple-check.md` | `simple-check` command and the canonical adequacy/scope/minimality `#check` reused by planning and review. |
 | `skills/agentflow/references/features.md` | `new-feature`/`merge-feature`/`drop-feature`; `#terminal-cli` owns the `agf` feature commands. |
 | `skills/agentflow/references/looper.md` | Looper contract (owns execution behavior). |
 | `skills/agentflow/scripts/looper.js` | Coordinator: `run`, `status`, queue validation, settings selection. |
@@ -70,12 +71,13 @@ docs/agent/              this knowledge base (not shipped as part of the skill)
 | `skills/agentflow/scripts/feature-merge.js` | Feature CLI `merge` (scoped merge, checks, conflict resolver, retirement, delivery). |
 | `skills/agentflow/scripts/feature-common.js` | Shared feature CLI helpers: context/identity, config discovery, claims, Trash, `retire`. |
 | `skills/agentflow/scripts/feature-shell.js` | `agf shell` function generator and the `AGF_CD_FILE` destination channel. |
-| `skills/agentflow/scripts/agf.js` | CLI entry: `agf looper run|status|cleanup`, feature commands, `agf shell`. |
+| `skills/agentflow/scripts/init.js` | Standalone initializer `agf init` (`initialize`, `locale`). |
+| `skills/agentflow/scripts/agf.js` | CLI entry: `agf init`, `agf looper run|status|cleanup`, feature commands, `agf shell`. |
 
 ## Entry points
 
 - **Prompt entry**: `skills/agentflow/SKILL.md` (frontmatter `name: agentflow`, trigger words in `description`). Hosts load it on trigger words like `godev`.
-- **CLI entry**: `skills/agentflow/scripts/agf.js:main` → `looper.js:run` / `status`, `looper-cleanup.js:cleanup`, `feature.js:create` / `drop`, `feature-merge.js:merge`, `feature-shell.js:binding`. Made callable as `agf` either by the shell function that first-time setup generates (`references/setup.md#agf-command-setup`, from `agf shell <zsh|bash|powershell>`) or by `npm install -g <resolved-skill>`.
+- **CLI entry**: `skills/agentflow/scripts/agf.js:main` → `init.js:initialize`, `looper.js:run` / `status`, `looper-cleanup.js:cleanup`, `feature.js:create` / `drop`, `feature-merge.js:merge`, `feature-shell.js:binding`. Made callable as `agf` either by the shell function that first-time setup generates (`references/setup.md#agf-command-setup`, from `agf shell <zsh|bash|powershell>`) or by `npm install -g <resolved-skill>`.
 - **Library exports**: `looper.js` exports `run, status, load, validate, task_text, ordinary_closeout, read_settings, select`; `agf.js` exports `main(args, io)` with injectable IO for tests.
 
 ## Commands
@@ -83,7 +85,8 @@ docs/agent/              this knowledge base (not shipped as part of the skill)
 Run from `skills/agentflow/`:
 
 ```sh
-npm test                      # node --test over all 8 scripts/*.test.js files (list in package.json)
+npm test                      # node --test over all 9 scripts/*.test.js files (list in package.json)
+node scripts/agf.js init [--lang <locale>]
 node scripts/agf.js looper status <run-root>
 node scripts/agf.js looper run <run-root> [--cleanup]
 node scripts/agf.js looper cleanup <run-root>
@@ -113,11 +116,12 @@ Tests create real temporary Git repositories and spawn processes; many have 30 s
 - `skills/agentflow/scripts/looper-report.test.js` — progress/heartbeat formatting, summaries, saved reports, locale.
 - `skills/agentflow/scripts/looper-cleanup.test.js` — explicit cleanup preconditions, Trash identity proofs, crash/retry.
 - `skills/agentflow/scripts/feature.test.js`, `feature-merge.test.js`, `feature-shell.test.js` — feature CLI create/drop, merge/recovery, shell bindings and cd channel.
+- `skills/agentflow/scripts/init.test.js` — `agf init`: bootstrap and generated-only commit, repeat no-op, refusals (nested/linked/detached/feature roots, partial records, staged/untracked AGENTS), retained reservation on failure, concurrency, locale fallback, CLI route detection (skipped on Windows).
 - Prompt behavior (SKILL.md/references) has **no automated tests** in this repo.
 
 ### Known Windows test failures (9.1.0)
 
-Observed on native Windows with a zh-TW OS locale (2026-10-29, full `npm test`: 305 tests, 207 pass, 65 fail, 8 cancelled, 25 skipped, ~27 min). CHANGELOG 9.1.0 states recorded checks cover packaged tests and representative macOS host journeys; native Windows keeps its stated limits. Causes were grouped from the failure messages; only the locale cause was re-run to confirm.
+Observed on native Windows with a zh-TW OS locale (2026-10-29, full `npm test`: 305 tests, 207 pass, 65 fail, 8 cancelled, 25 skipped, ~27 min). This run predates 9.1.2, so `init.test.js` is not covered by this table. CHANGELOG 9.1.0 states recorded checks cover packaged tests and representative macOS host journeys; native Windows keeps its stated limits. Causes were grouped from the failure messages; only the locale cause was re-run to confirm.
 
 | Cause | Affected tests (examples) | Status |
 | --- | --- | --- |

@@ -34,6 +34,8 @@ Paths are relative to `skills/agentflow/`.
 - **Archive** — `<notebook-stem>.archive.md`, receives old rounds when the notebook exceeds 750 lines.
 - **Pending batches** — tracker/evidence section holding staged `append-rounds` input.
 - **Empty bootstrap** — the single `chore: initialize repository` empty commit made for eligible first setup or main-rooted `new-feature` when the repo has no HEAD (`references/setup.md#empty-bootstrap`).
+- **Init reservation / `.init-pending.owner`** — `.agentflow/.init-pending.owner` JSON `{session, ask, invocation, claimed_at}` created exclusively by `agf init`; retained on any failure and must be reconciled by the host before setup/idle/claims; on success renamed to the private receipt `.git/agf-init-completed-<uuid>.json` (`scripts/init.js:initialize`).
+- **Program A-001** — the initializer-written first round recording the canonical `agf init` arguments as captured input; owner work starts in A-002.
 
 ## Commands and modes
 
@@ -41,6 +43,9 @@ Paths are relative to `skills/agentflow/`.
 - **fast-lane** — one task executed directly by the host, skipping advisors, delegation, separate review, new design/tracker, routine RUN/WIP.
 - **skip-review** — one task with host review only.
 - **grill-me** — requirements interview.
+- **simple-check** — `simple-check [target]`: fresh independent read-only review of an existing plan returning PASS/REVISE/BLOCKED; no host fallback or implementation authority (`references/simple-check.md`, 9.1.2).
+- **Check (canonical)** — the adequacy → scope → subtraction → total burden → proof checklist in `references/simple-check.md#check`, applied by planning and review at their existing checkpoints without adding stages.
+- **agf init** — standalone initializer for a fresh Git root (`scripts/init.js`, `references/setup.md#standalone-initialization`).
 - **3ways** — Claude and Codex draft blind, exchange and debate, then Codex writes the final synthesis with dispositions; the host verifies and relays but does not rewrite it (`references/review.md#3ways-compare-before-implementation`, 9.1.0).
 - **browfield** — optional eight-gate brownfield procedure (spelling is intentional in this repo).
 - **append-rounds / append-tasks** — stage a later batch.
@@ -65,7 +70,7 @@ Paths are relative to `skills/agentflow/`.
 ## Looper
 
 - **Looper / coordinator** — `scripts/looper.js:run`; the only writer of `queue.json`.
-- **agf** — CLI launcher (`scripts/agf.js:main`): `looper run|status|cleanup`, the terminal feature commands and `shell`. The pre-9.1.0 spelling `agf loop …` no longer parses.
+- **agf** — CLI launcher (`scripts/agf.js:main`): `init`, `looper run|status|cleanup`, the terminal feature commands and `shell`. The pre-9.1.0 spelling `agf loop …` no longer parses.
 - **Run-root** — the `planned/` directory under `<ag-dir>/artifacts/A-NNN-<name>/` containing `queue.json`.
 - **Queue** — `queue.json` schema 2: run_id, repo, target_branch, base_commit, request + sha256, authorization, checks, integration_checks, groups.
 - **Group** — ordered tasks run sequentially in one worktree (`.wts/aglite-<run_id>-<group>`); optional `depends_on` earlier groups.

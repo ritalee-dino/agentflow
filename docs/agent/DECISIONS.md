@@ -13,7 +13,7 @@ Ordinary behavior is executed by the host with its own tools. Sources: `referenc
 
 ## D2. The looper is a narrow runtime exception — [Documented]
 
-`references/looper.md` intro and `#scope-and-maintenance`: scoped Node coordinator, only `run`/`status`/`cleanup`, no push/release authority; cleanup only through its explicit command/flag (9.1.0). Zero dependencies (`package.json`). Added in 0.3.1 (`CHANGELOG.md`). Since 9.1.0 a second bounded exception exists, the terminal feature CLI (D23).
+`references/looper.md` intro and `#scope-and-maintenance`: scoped Node coordinator, only `run`/`status`/`cleanup`, no push/release authority; cleanup only through its explicit command/flag (9.1.0). Zero dependencies (`package.json`). Added in 0.3.1 (`CHANGELOG.md`). Since 9.1.0 a second bounded exception exists, the terminal feature CLI (D23), and since 9.1.2 a third, the standalone initializer (D25).
 
 ## D3. Small entrypoint, demand-loaded references — [Documented]
 
@@ -102,6 +102,14 @@ CHANGELOG 9.1.0; `references/features.md#terminal-cli`, `SKILL.md#load-only-the-
 ## D24. Looper reports are derived, never authoritative — [Documented] + [Implemented]
 
 `looper.md#progress-and-results`: `results.md` and `evidence/run-*.txt` are snapshots; `queue.json` alone owns execution. Report save failures only warn (`agf.js:main`, `looper-report.js:save_report`).
+
+## D25. Standalone initializer is a third bounded runtime exception — [Documented] + [Implemented]
+
+CHANGELOG 9.1.2; `references/setup.md#standalone-initialization` ("the bounded runtime exception for these deterministic setup steps; ordinary host work remains instruction-driven"); `SKILL.md#load-only-the-applicable-procedure`; `references/configuration.md` first paragraph. Invocation authorizes only Git init, the empty bootstrap and a setup-file commit with hooks suppressed — no remote, push, shell-profile write, model call, migration or repair. Hosts keep routing, claims, capture, binding, release checks and delivery. The exclusive `.init-pending.owner` reservation doubles as the interruption marker and is never removed on failure (code comment in `init.js:initialize`), so recovery is host reconciliation rather than automatic retry. Tests: `scripts/init.test.js`.
+
+## D26. One canonical simplicity Check, no new stage — [Documented]
+
+CHANGELOG 9.1.2; `references/simple-check.md` intro: existing callers use Check "without adding stages, workers, records or authority". `planning.md` and `review.md` link to `simple-check.md#check` instead of restating their own minimality rules; the explicit `simple-check` command is separate and needs a fresh independent worker (no host fallback). The CHANGELOG states the compliance improvement is unproved.
 
 ## Unknowns
 

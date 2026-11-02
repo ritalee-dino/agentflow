@@ -3,9 +3,10 @@
 ## Two halves
 
 1. **Prompt-defined workflow (host-driven).** Everything except the Node runtime below is instructions that a coding-assistant host executes with its own tools (file edits, Git). There are explicitly no hooks, daemons or helper scripts for ordinary work (`references/configuration.md` first paragraph, `references/session.md#notebook-ownership` last item).
-2. **Node runtime (`agf`).** Two narrow, explicitly scoped exceptions sharing one launcher (`scripts/agf.js`):
+2. **Node runtime (`agf`).** Three narrow, explicitly scoped exceptions sharing one launcher (`scripts/agf.js`; listed in `SKILL.md#load-only-the-applicable-procedure` Looper bullet):
    - **Looper**: a coordinator that runs prepared task groups in isolated Git worktrees and integrates them — `agf looper run|status|cleanup` (`references/looper.md#shell-entry--alphabetical`).
    - **Terminal feature CLI** (9.1.0): `agf new-feature|merge-feature|drop-feature` plus `agf shell` — the feature-worktree lifecycle run from a terminal instead of host chat (`references/features.md#terminal-cli`). It does not reuse the looper coordinator.
+   - **Standalone initializer** (9.1.2): `agf init [--lang <locale>]` — deterministic fresh-Git setup scaffold (`references/setup.md#standalone-initialization`). Hosts call it for supported fresh Git setup but keep routing, claims, capture, binding and delivery duties.
 
 ```mermaid
 flowchart LR
@@ -22,12 +23,16 @@ flowchart LR
   Owner -->|terminal| FCLI[agf new/merge/drop-feature]
   FCLI --> Repo
   FCLI -->|conflicts only| Codex[codex exec]
+  Owner -->|terminal| INIT[agf init]
+  Host -->|fresh Git setup| INIT
+  INIT --> Records
+  INIT --> Repo
 ```
 
 ## Prompt layer
 
 - **Entrypoint**: `skills/agentflow/SKILL.md`. Sections:
-  - `#route-before-records` — strict precedence: (1) off-record markers, (2) isolated looper task, (3) configuration/routing, (4) feature lifecycle, (5) fresh setup or idle shortcut, (6) owned work.
+  - `#route-before-records` — strict precedence: (1) off-record markers, (2) isolated looper task, (3) configuration/routing, (4) feature lifecycle, (5) retained `.init-pending.owner` recovery, then fresh setup or idle shortcut, (6) owned work.
   - `#load-only-the-applicable-procedure` — which reference to load per situation. Design goal: keep the default load small (CHANGELOG 9.0.0-beta.1).
 - **Procedure references** (`skills/agentflow/references/`), each owning one concern:
 
@@ -39,10 +44,11 @@ flowchart LR
 | `work.md` | task modes, execution, RUN/WIP, diffs |
 | `planning.md` | design/tracker creation, plan-mode, gates |
 | `review.md` | worker settings, delegation, planning routes, result review, `3ways` |
+| `simple-check.md` | `simple-check` command (fresh independent read-only plan review → PASS/REVISE/BLOCKED) and the canonical `#check` that `planning.md` and `review.md` apply without adding stages (9.1.2) |
 | `batches.md` | `append-rounds` staging/advancement |
 | `features.md` | feature worktree lifecycle and handoffs; `#terminal-cli` / `#terminal-directory-transition` for the `agf` feature commands |
 | `looper.md` | looper contract (authoritative for runtime behavior) |
-| `setup.md` | first-time setup, AGENTS.md adoption in consumer projects, `#agf-command-setup` (generated `agf` shell function), `#detected-worker-defaults` (looper routes from detected `codex`/`claude`), `#empty-bootstrap` (one empty commit for repos without HEAD) |
+| `setup.md` | first-time setup, AGENTS.md adoption in consumer projects, `#agf-command-setup` (generated `agf` shell function), `#detected-worker-defaults` (looper routes from detected `codex`/`claude`), `#empty-bootstrap` (one empty commit for repos without HEAD), `#standalone-initialization` (`agf init` contract and `.init-pending.owner` recovery) |
 | `upkeep.md`, `legacy-migration.md` | schema migration, Agentflow 8 migration, install replacement |
 | `invariants.md`, `project-rules.md` | system-invariant registry, shared project rules |
 | `ag.md` + `advisors/*.md` | optional advisor selection and prompts |
@@ -65,14 +71,15 @@ All state is plain files written by the host, under the configured `ag-dir` (def
 | `<notebook-stem>.archive.md` | archived rounds when notebook > 750 lines | — |
 | `<ag-dir>/features/<name>/<name>.devlog.md` | feature notebook inside `.wts/ft-<name>` | — |
 | `<ag-dir>/features/<name>/{merge,snapshot,intake}-state.json`, `.merge-*` workspace | feature CLI merge recovery state (written only by `agf merge-feature`) | — |
+| `.agentflow/.init-pending.owner` → `.git/agf-init-completed-<uuid>.json` | `agf init` reservation/interruption marker; renamed into `.git/` only after verified completion, retained on any failure | — |
 
 ## Looper runtime
 
-Modules in `skills/agentflow/scripts/` (dependency direction: `agf.js → {looper, looper-report}`, lazily `looper-cleanup` and the feature modules; `looper.js → {looper-integration, looper-agent, looper-state}`, lazily `looper-report` (status) and `looper-cleanup` (cleaned queues); `looper-cleanup → {looper-state, looper-integration, looper-agent, looper}`; `looper-integration` and `looper-agent` both use `looper-state`; `looper-integration.js:git` lazily requires `looper-agent.js:resolve_command` on Windows).
+Modules in `skills/agentflow/scripts/` (dependency direction: `agf.js → {looper, looper-report}`, lazily `looper-cleanup`, `init` and the feature modules; `looper.js → {looper-integration, looper-agent, looper-state}`, lazily `looper-report` (status) and `looper-cleanup` (cleaned queues); `looper-cleanup → {looper-state, looper-integration, looper-agent, looper}`; `looper-integration` and `looper-agent` both use `looper-state`; `looper-integration.js:git` lazily requires `looper-agent.js:resolve_command` on Windows).
 
 | Module | Responsibility | Key symbols |
 | --- | --- | --- |
-| `agf.js` | argv parsing and dispatch (looper / feature / shell), locale lookup, progress observer + 30 s heartbeat, `--cleanup` sequencing, report save, exit codes | `main` |
+| `agf.js` | argv parsing and dispatch (init / looper / feature / shell), locale lookup, progress observer + 30 s heartbeat, `--cleanup` sequencing, report save, exit codes | `main` |
 | `looper.js` | coordinator loop, queue validation, settings discovery/selection, native handoff, answers import, task job, ordinary-review relay, integration loop, target adoption calls, status | `run`, `status`, `validate`, `read_settings`, `select`, `worker`, `notebook_rounds`, `ordinary_closeout`, `ordinary_review_proof`, `project_context`, `contract_changes`, `task_text` |
 | `looper-integration.js` | all Git mutations; hooks disabled via `core.hooksPath` | `git`, `prepare_group`, `commit_task`, `target_safe`, `target_identity`, `adopt_target`, `landing_applied`, `prepare_integration`, `verify_integration`, `commit_repair`, `land`, `no_operation`, `changed`, `scoped` |
 | `looper-agent.js` | spawn processes with identity tracking, descendants, timeouts; build CLI args per provider; parse results; save `failure.json`; run checks; Windows command resolution | `launch_agent`, `execute`, `run_checks`, `resolve_command`, `shim_entry`, `observe_descendants`, `validate_result`, `result_schema`, `parse_claude_result`, `parse_copilot_result`, `copilot_environment`, `provider_error`, `diagnostic_text` |
@@ -112,13 +119,22 @@ Separate from the looper; only the `agf` launcher and some helpers are shared.
 
 Dependencies: `feature.js → {feature-common, feature-shell, looper-report}`; `feature-merge.js → {feature-common, feature-shell, looper-report, looper-agent:execute, looper-state:process_alive}`; `feature-common → looper-state` (and `looper-report` for locale support). Generated records support English and Traditional Chinese only; other locales stop before mutation. Platform: macOS uses Trash; Windows deletes the exact checkout/claims directly (best effort); Linux refuses record operations (`feature-common.js:preflightClaimDisposal`).
 
+## Initializer runtime (9.1.2)
+
+| Module | Responsibility | Key symbols |
+| --- | --- | --- |
+| `init.js` | `agf init`: verify/initialize the physical Git root, skip complete setups, reserve `.agentflow/` exclusively, empty bootstrap, scaffold config/notebook/backlog/registry/placeholders, adopt AGENTS directives (en/zh-TW), detect `codex`/`claude` routes, commit only generated paths, retire the marker | `initialize`, `locale` (internal: `repository`, `complete`, `scan`, `preflight`, `detect`, `instructions`, `adopt`) |
+
+Dependencies: `init.js → {feature-common (discover, git with hooks disabled, noOperation, roundHeadings), looper-state (checked_file, powershell)}`. Always uses the default ag-dir `.agentflow`. Never migrates, repairs, pushes, writes shell profiles or calls models; partial/legacy/ambiguous state is left for host reconciliation.
+
 ## External systems
 
 | System | Used by | Where |
 | --- | --- | --- |
-| Git | features (host and feature CLI), looper | `references/features.md`, `feature-merge.js`, `looper-integration.js` |
+| Git | features (host and feature CLI), looper, initializer | `references/features.md`, `feature-merge.js`, `looper-integration.js`, `init.js` |
 | `codex exec` | looper CLI route; external review on a Claude host; feature CLI conflict resolver | `looper-agent.js:launch_agent`, `feature-merge.js:merge`, `references/review.md#external-cli-examples--authorized-planningreview` |
 | `claude -p` | looper CLI route; external planning/review | same |
+| `codex --version` / `claude --version` | initializer route detection only (no model call; skipped on Windows) | `init.js:detect` |
 | `copilot` CLI | looper CLI route | `looper-agent.js:launch_agent`, `references/copilot.md` |
 | GitHub releases `agfnow/agentflow` | release check by host every 2 days | `references/configuration.md#session-release-check` |
 | Browserbase `browse` / Stagehand | default browser-test tooling | `references/browser-testing.md` |

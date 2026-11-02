@@ -9,7 +9,7 @@ Paths are relative to `skills/agentflow/`.
 - **Worker / delegate** — a bounded subagent or CLI session given one assignment (`references/review.md#give-one-bounded-assignment`). Never activates agentflow itself unless it is a looper task host.
 - **Native** — a worker launched through the host's own subagent tools. In the looper, native work goes through the inbox handoff.
 - **External / CLI** — a worker launched as a separate CLI process (`codex exec`, `claude -p`, `copilot`).
-- **Counterpart** — the other provider used for independent review (Claude host → Codex, Codex host → Claude). `scripts/looper.js:counterpart`.
+- **Counterpart** — the other provider used for independent result review (Claude host → Codex, Codex host → Claude); prompt-level rule in `references/review.md#result-review-routes`. The looper no longer enforces a different provider for repaired-result review (the former `looper.js:counterpart` was removed in 9.1.0).
 - **Advisor** — optional reasoning role prompt in `references/advisors/` (requirements, codewalk, explore, spike, spec, security-scan, acceptance, final-audit, learn, product-docs).
 
 ## Records
@@ -41,7 +41,7 @@ Paths are relative to `skills/agentflow/`.
 - **fast-lane** — one task executed directly by the host, skipping advisors, delegation, separate review, new design/tracker, routine RUN/WIP.
 - **skip-review** — one task with host review only.
 - **grill-me** — requirements interview.
-- **3ways** — Claude plans, Codex challenges, host resolves.
+- **3ways** — Claude and Codex draft blind, exchange and debate, then Codex writes the final synthesis with dispositions; the host verifies and relays but does not rewrite it (`references/review.md#3ways-compare-before-implementation`, 9.1.0).
 - **browfield** — optional eight-gate brownfield procedure (spelling is intentional in this repo).
 - **append-rounds / append-tasks** — stage a later batch.
 - **show-diff** — present a verified diff with reasons.
@@ -55,12 +55,17 @@ Paths are relative to `skills/agentflow/`.
 - **Managed feature** — worktree `<main>/.wts/ft-<name>` on `feature/<name>`.
 - **Stream / Cleanup / Session** — feature-only STATUS fields: `open|merged|dropped`, `N/A|pending|failed|complete`, `active|retired`.
 - **Handoff** — numbered instructions telling the owner to `/cd <path>` and send `godev`.
+- **Terminal feature CLI** — `agf new-feature|merge-feature|drop-feature` (aliases `newft`/`mergeft`/`dropft`), code in `scripts/feature*.js`; distinct from the host chat commands of the same name.
+- **Shell binding / `agf` function** — shell function printed by `agf shell <zsh|bash|powershell>` (`scripts/feature-shell.js:binding`) and added by first-time setup; forwards to `node <skill>/scripts/agf.js` and switches cwd only for successful feature commands.
+- **AGF_CD_FILE / AGF_CD_HINT** — private destination file through which the feature CLI tells the shell function where to `cd`; `AGF_CD_HINT=1` opts in to a second hint line.
+- **default-editor** — optional top-level `ag.json` key (default `vscode` → `code`) used by `agf new-feature --open`.
+- **merge-state.json** — feature CLI merge recovery journal under `<ag-dir>/features/<name>/`, with phases `prepared … complete`.
 - **Retire** — mark a feature merged/dropped; optional Trash-based removal.
 
 ## Looper
 
 - **Looper / coordinator** — `scripts/looper.js:run`; the only writer of `queue.json`.
-- **agf** — CLI binary (`scripts/agf.js`), commands `loop run` and `loop status`.
+- **agf** — CLI launcher (`scripts/agf.js:main`): `looper run|status|cleanup`, the terminal feature commands and `shell`. The pre-9.1.0 spelling `agf loop …` no longer parses.
 - **Run-root** — the `planned/` directory under `<ag-dir>/artifacts/A-NNN-<name>/` containing `queue.json`.
 - **Queue** — `queue.json` schema 2: run_id, repo, target_branch, base_commit, request + sha256, authorization, checks, integration_checks, groups.
 - **Group** — ordered tasks run sequentially in one worktree (`.wts/aglite-<run_id>-<group>`); optional `depends_on` earlier groups.
@@ -70,7 +75,13 @@ Paths are relative to `skills/agentflow/`.
 - **Route** — `looper-routes.task|repair|acceptance` `{kind, provider, model-family}`; review uses the acceptance route.
 - **Candidate** — group branch commit ready for integration.
 - **Ready list / lane** — FIFO of ready groups; one serial integration lane.
-- **expected_head** — latest checked target commit; target movement outside the lane sets `lane_error`.
+- **expected_head** — latest checked or adopted target commit.
+- **Target adoption** — recording a same-branch forward target advance made outside the lane (`looper-integration.js:adopt_target`, `queue.target_adoptions[]`); branch change, rewrite or foreign Git operation sets `lane_error` instead.
+- **Carry forward** — re-merging an already checked integration result onto a newer adopted head, keeping the superseded attempt in `group.integration_history`.
+- **Ordinary review relay** — a CLI task's own separate review, requested via `.aglite-records/ordinary-review/<attempt>/request.json` and run by the coordinator as a fresh read-only sibling (`attempt.ordinary_reviews`).
+- **Explicit cleanup** — `agf looper cleanup` / `run --cleanup`: moves a completed run's worktrees and run-root extras to macOS Trash, keeping queue/request/plans and branches (`scripts/looper-cleanup.js`, `queue.cleanup`).
+- **Run report** — derived output: `results.md` in the run-root and `evidence/run-<time>-<uuid>.txt` per invocation (`scripts/looper-report.js:save_report`); never resume input.
+- **failure.json** — structured launch/execution/result failure evidence in `attempts/<uuid>/`.
 - **Repair** — fix attempt in the integration worktree after conflicts or failed checks; bounded by `max-repairs`.
 - **Handoff (native)** — `attempts/<uuid>/assignment.md` read by host; result returned in `inbox/<uuid>.json` with `writer_stopped: true`.
 - **Question** — blocker saved in `queue.json` `questions`; answered through `inbox/answers.json`.

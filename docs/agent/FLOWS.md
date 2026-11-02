@@ -1,6 +1,6 @@
 # Runtime flows
 
-Flows 1–4 are executed by the host following prompts (no code, no automated tests). Flows 5–10 are implemented in `skills/agentflow/scripts/` and covered by `looper*.test.js` / `feature*.test.js`. Paths are relative to `skills/agentflow/`.
+Flows 1–4 are executed by the host following prompts (no code, no automated tests). Flows 5–11 are implemented in `skills/agentflow/scripts/` and covered by `looper*.test.js` / `feature*.test.js` / `init.test.js`. Paths are relative to `skills/agentflow/`.
 
 ---
 
@@ -12,7 +12,7 @@ Trigger: owner message in a host that loaded `SKILL.md`.
 2. Isolated looper task? Apply coordinator-supplied overrides (step 2; see flow 6 prompt).
 3. Verify physical directory, Git root/branch/worktrees; read `references/configuration.md`; reread live `ag.json` (step 3).
 4. Feature lifecycle command or `.wts/` path → `references/features.md`, bypassing the root notebook (step 4).
-5. No notebook/history → `references/setup.md`; otherwise bare activation with no work → idle shortcut (ask for next request, no claim) (step 5).
+5. Retained `<ag-dir>/.init-pending.owner` (also the default `.agentflow` when different) → initializer recovery first, blocking dependent work (`setup.md#standalone-initialization`). No notebook/history → `references/setup.md` (supported fresh Git setup runs `agf init`, flow 11); otherwise bare activation with no work → idle shortcut (ask for next request, no claim) (step 5).
 6. Owned work → `references/session.md`: claim → recover → capture owner input → project rules/invariants → task work (step 6).
 7. Owner-facing host also runs the release check when `next_update_date` is due (`configuration.md#session-release-check`).
 
@@ -180,6 +180,28 @@ agf.js:main  validate argv/flags/name → feature-shell.js:channel(AGF_CD_FILE) 
 
 Tests: `scripts/feature.test.js`, `scripts/feature-merge.test.js`, `scripts/feature-shell.test.js` ("dispatcher validates before effects, routes aliases, and publishes only success", "real terminal CLI aliases create, snapshot, merge and clean up …").
 
+## 11. Standalone initializer (`agf init`, 9.1.2)
+
+Trigger: owner runs `agf init [--lang <locale>]` in a shell, or the host runs it during eligible fresh Git setup (`setup.md#first-time-setup`). Contract `references/setup.md#standalone-initialization`.
+
+```
+agf.js:main            argv must be exactly `init` or `init --lang <tag>`; else usage, exit 1, no writes
+→ init.js:initialize   Node ≥ 20; physical cwd; feature-common.js:discover (absent allowed); repository()
+→ config exists?       no .owner/symlinks under ag-dir + complete() → "Already initialized", exit 0, no changes
+→ locale(lang)         en/zh-TW kept, other zh → zh-tw, other valid → en-us, malformed → stop
+→ scan()               existing devlog/archive/backlog/registry/.owner/.agentflow/.aglite-records → stop
+→ AGENTS checks, detect() routes, preflight (recorded history, Git identity, git init if non-Git, check-ignore)
+→ mkdir .agentflow + write .init-pending.owner (wx)        reservation = interruption marker
+→ empty bootstrap commit if no HEAD
+→ write scaffolds (wx) + AGENTS adoption (temp file + rename, mode preserved) → complete()
+→ auto-commit on: git add + commit --only "chore: initialize agentflow" of generated paths; verify parents/paths/index
+→ rename marker to .git/agf-init-completed-<uuid>.json; print invariant notice + "write the next request in A-002"
+```
+
+Any error after the reservation keeps `.init-pending.owner` and appends a host-reconciliation hint (exit 1); the next host activation must reconcile it before setup/idle/claim (flow 1 step 5). After success the host rereads `use-lang`, claims A-002 and finishes binding, release-check and delivery duties.
+
+Tests: `scripts/init.test.js` ("unborn Git bootstrap, generated-only commit …", "complete custom canonical setup remains byte/index/HEAD no-op", "bootstrap failure retains explicit partial reservation …", "concurrent real processes cannot compete for scaffolds", "CLI validates init arguments before writes").
+
 ## Error propagation summary
 
 | Where | Behavior |
@@ -192,3 +214,4 @@ Tests: `scripts/feature.test.js`, `scripts/feature-merge.test.js`, `scripts/feat
 | report save failure (`results.md` / `evidence/run-*.txt`) | warning on stderr; exit code and scheduling unchanged |
 | `run --cleanup` cleanup failure after task success | both reported; exit 1; retry with `agf looper cleanup` |
 | feature CLI error | message + retained-state/recovery hint on stderr; exit 1; no cwd change |
+| `agf init` error | message on stderr, exit 1; after reservation `.init-pending.owner` is retained for host reconciliation (never deleted or retried automatically) |

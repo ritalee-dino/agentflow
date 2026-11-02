@@ -1,6 +1,6 @@
 # Feature map
 
-Most features are **prompt-defined**: the "implementation" is a Markdown section that the host follows. Only the looper (F10) and the terminal feature CLI (F11b) have executable code and tests. For each feature, read the listed reference section first.
+Most features are **prompt-defined**: the "implementation" is a Markdown section that the host follows. Only the standalone initializer (F4b), the looper (F10) and the terminal feature CLI (F11b) have executable code and tests. For each feature, read the listed reference section first.
 
 Paths below are relative to `skills/agentflow/` unless they start with `.claude-plugin/`, `README` or `CHANGELOG`.
 
@@ -37,7 +37,19 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 - **Purpose**: create config, notebook, backlog, registry, dirs; add activation directive to consumer `AGENTS.md`.
 - **Definition**: `references/setup.md#first-time-setup`, `#agents-adoption`, `#empty-bootstrap`.
 - **Also**: `#agf-command-setup` — during eligible first-time setup the host generates the `agf` shell function (`node <skill>/scripts/agf.js shell <zsh|bash|powershell>`) and appends it to the login shell's startup files if absent; existing bindings are never auto-upgraded. `#detected-worker-defaults` — new configs set all three `looper-routes` to a detected `codex` (preferred) or `claude` CLI, else native routes or empty.
+- **Command path (9.1.2)**: for eligible fresh Git setup (no explicit owner target language outside English/Traditional Chinese) the host runs the verified `agf init --lang <use-lang>` (F4b) instead of hand-writing scaffolds, then claims A-002; direct host setup remains for non-Git decline, commit prohibition, config-only recovery, dirty AGENTS adoption, unsupported platforms, etc. (`setup.md#first-time-setup`). New AGENTS directives are rendered in the configured locale (English canonical).
 - **Side effects**: may ask to `git init`; for an approved `git init` or an existing repository without commits, creates one empty bootstrap commit (`git commit --allow-empty --only -m "chore: initialize repository"`) even with `auto-commit: off`, unless commits are explicitly forbidden. Pre-existing staged/untracked contents are excluded from the first delivery (`references/delivery.md#git-delivery`). No push authority.
+
+## F4b. Standalone initializer `agf init` (9.1.2)
+
+- **Purpose**: deterministic fresh-root setup from a shell (or by the host during F4) without model calls.
+- **Command**: `agf init [--lang <locale>]`, or `node <skill>/scripts/agf.js init …` without a binding.
+- **Contract**: `references/setup.md#standalone-initialization`; locale fallback in `references/configuration.md#discovery-and-validation` (use-lang bullet); recovery gate in `SKILL.md#route-before-records` step 5.
+- **Entry**: `scripts/agf.js:main` (validates `init` argv before any write) → `scripts/init.js:initialize`.
+- **Behavior**: runs at the physical Git root only (or `git init`s a non-Git cwd); refuses nested folders, linked worktrees, bare repos, `feature/*` branches, Git locks or in-progress operations, unborn repos with refs, existing records/claims, staged/modified/untracked AGENTS changes, ignored generated paths and missing commit identity. A complete existing setup (incl. custom ag-dir/notebook-name) is a byte-for-byte no-op. Locale: `en*`, `zh`, `zh-tw`, `zh-hant*` kept; other `zh-*` → `zh-tw`; other valid tags → `en-us`; malformed tags stop (`init.js:locale`). Routes: first of `codex`/`claude` answering `--version`, else empty; always empty on Windows (`init.js:detect`).
+- **Persistence**: `.agentflow/ag.json`, notebook (program A-001 recording the invocation + empty A-002), `backlog.md`, empty `sys-invariants.md`, `.gitkeep` in `artifacts/`, `features/`, `.tmp/`, root `AGENTS.md` directives; marker `.agentflow/.init-pending.owner` retired to `.git/agf-init-completed-<uuid>.json`.
+- **Side effects**: optional empty bootstrap `chore: initialize repository`; with `auto-commit: on` one `chore: initialize agentflow` commit of generated paths only (`git commit --only`), hooks disabled; no push.
+- **Tests**: `scripts/init.test.js`.
 
 ## F5. Task modes and execution
 
@@ -48,6 +60,7 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 ## F6. Planning, designs, trackers and gates
 
 - **Definition**: `references/planning.md` (creation criteria, design sections `## Invariants`, `## Acceptance criteria`, `## Validation`, `## Minimality check`; tracker statuses TODO/DOING/BLOCKED/DONE), `#planning-modes-and-gates` (`plan-mode`, `gate-design`, `gate-tracker`).
+- **Check (9.1.2)**: designs start with the plain-language overview from `references/writing.md`; adequacy/scope/minimality checks before edits, at closeout and before implementation apply `references/simple-check.md#check` (no extra stage or worker).
 - **Routing**: `plan-order` in `references/review.md#planning-routes` (3ways → external → native → host). Since 9.1.0, simple understood low-risk planning (including simple task grouping) stays in the host; complex planning uses the configured route.
 
 ## F7. Delegation and result review
@@ -56,6 +69,14 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 - **Definition**: `references/review.md` (`#worker-settings`, `#choose-a-worker`, `#give-one-bounded-assignment`, `#planning-routes`, `#result-review-routes`, `#inspect-the-finished-result`, `#3ways-compare-before-implementation`); `references/copilot.md` for Copilot.
 - **3ways (9.1.0)**: Claude and Codex draft blind, then exchange and debate; Codex writes the final synthesis with dispositions (dissent recorded, consensus only on identical accepted content). On any route using Codex, Codex owns final planning content.
 - **External integrations**: `codex exec`, `claude -p` example command shapes in `review.md`.
+- **Check reuse (9.1.2)**: blind drafts and result review's Outcome/Minimality items apply `references/simple-check.md#check`.
+
+## F7b. Simplicity check (`simple-check`, 9.1.2)
+
+- **Command**: unquoted `simple-check [target]` (also a `SKILL.md` trigger word).
+- **Definition**: `references/simple-check.md` (`#command`, `#check`, `#result`).
+- **Behavior**: reviews a named or unambiguous active existing plan with a fresh independent read-only worker on the `acceptance` route; no host fallback (→ BLOCKED), no plan creation, no implementation authority. Returns PASS, REVISE or BLOCKED for the exact revision, saved in existing review evidence/answer locations.
+- **Tests**: none (prompt).
 
 ## F8. Advisors
 
@@ -117,7 +138,7 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 ## F14. Language and writing
 
 - **Switch**: `use-lang` (locale for all new human text; machine tokens unchanged).
-- **Definition**: `references/configuration.md#discovery-and-validation` (use-lang bullet), `references/writing.md`, `references/saving-mode.md`.
+- **Definition**: `references/configuration.md#discovery-and-validation` (use-lang bullet), `references/writing.md` (since 9.1.2 every design/report opens with a mental-model overview), `references/saving-mode.md`.
 - **Code link**: `notebook_rounds` deliberately ignores heading labels so localized `# → <label> / A-NNN` headings validate.
 
 ## F15. Release check and installation upkeep
@@ -134,6 +155,8 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 | Why a host did X at activation | `SKILL.md#route-before-records` |
 | Notebook format / receipt | `references/delivery.md#notebook-and-delivery`, `assets/.agentflow/devlog.md` |
 | A setting's meaning/default | `references/configuration.md#switch-effects`, `docs/CHEATSHEET.md` (zh-TW: `docs/CHEATSHEET.tw.md`) |
+| Fresh project initialization | `references/setup.md#standalone-initialization`, `scripts/init.js:initialize` |
+| Plan simplicity review | `references/simple-check.md` |
 | Differences from Agentflow 8 | `docs/agv8-agv9-comparison.md`, `references/legacy-migration.md` |
 | Which model/provider a worker uses | `references/review.md#worker-settings`, `scripts/looper.js:select` |
 | Looper scheduling/integration bug | `scripts/looper.js:run` (`task_job`, `integrate`, main `while` loop), `scripts/looper-integration.js` |

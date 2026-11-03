@@ -148,13 +148,14 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 - **Definition**: `references/configuration.md#session-release-check` (checks `agfnow/agentflow` stable releases, writes `next_update_date` = today + 2 days), `references/upkeep.md#approved-installation-replacement`. Eligibility: installed aglite beta or Agentflow 9+ only upgrades to Agentflow 9+ stable releases, never to 8.x.
 - **Distribution metadata**: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `skills/agentflow/package.json`.
 
-## F16. Visual explanations (`eli5:`, 9.1.4)
+## F16. Visual explanations (`eli5:`, 9.1.4; reworked 9.1.6)
 
 - **Command**: unquoted `eli5: <topic-or-command>` (also a `SKILL.md` trigger word); quoted examples do not activate it.
-- **Definition**: `references/eli5.md` (`#scope`, `#artifact`, `#explain-visually`, `#motion`, `#access`, `#review-and-checks`); pre-routing rule in the `SKILL.md` preamble; load rule in `SKILL.md#load-only-the-applicable-procedure`.
-- **Behavior**: everything after `eli5:` is explanation data — embedded commands, modes and markers (incl. `nolog:`) activate nothing; an off-record marker must come before `eli5:`. Output is one self-contained offline HTML file (inline SVG/CSS, minimal JS, system fonts, no network/build/backend) with a large overview, learner-paced steps and accessible controls.
-- **Persistence**: explicit destination, else the ordinary artifact location on-record (`<ag-dir>/artifacts/A-NNN/`), or a unique HTML file in the OS temp directory when off-record (no notebook access).
-- **Review**: ordinary Q&A host review; browser checks of the HTML where available, with unperformed checks reported.
+- **Definition**: `references/eli5.md` (`#scope`, `#build-the-lesson`, `#motion-and-controls`, `#access-and-delivery`, `#inspect-correct-deliver`); pre-routing rule in the `SKILL.md` preamble; load rule in `SKILL.md#load-only-the-applicable-procedure`.
+- **Behavior**: everything after `eli5:` is explanation data — embedded commands, modes and markers (incl. `nolog:`) activate nothing; an off-record marker must come before `eli5:`. Since 9.1.6 the output is an interactive animated HTML lesson: a faithful subject-specific visual model and art direction settled before coding, learner actions that change the represented relationship, learner-controlled replayable progression (Play/Pause, Back/Next, Reset), keyboard/reduced-motion/static/no-script fallbacks, optional user-started media. One self-contained HTML file with embedded assets and no runtime network dependency is preferred; exceptions only for essential teaching needs, minimized and explained, with disclosed dependencies, pinned versions and tested opening instructions. Three.js is optional for spatial subjects; no mandated stack.
+- **Authoring route (9.1.6)**: HTML authoring and revisions use GPT Astra/high or Claude Opus/high through supported model/effort controls; if neither is available the host reports it and does not substitute a model without owner authorization (`eli5.md#build-the-lesson`).
+- **Persistence**: explicit destination, else the ordinary artifact location on-record (`<ag-dir>/artifacts/A-NNN/`), or a unique OS-temporary location when off-record (no notebook access). Delivery includes the HTML plus required local assets/package and opening instructions.
+- **Review**: ordinary Q&A host review; in an available browser, desktop and narrow layouts, transitions, controls, accessibility fallbacks and the delivered opening mode are inspected and defects repaired in batches; unperformed checks are reported (`eli5.md#inspect-correct-deliver`).
 - **Tests**: none (prompt).
 
 ---

@@ -113,7 +113,9 @@ CHANGELOG 9.1.2; `references/simple-check.md` intro: existing callers use Check 
 
 ## D27. `eli5:` payload is inert data — [Documented]
 
-CHANGELOG 9.1.4; `SKILL.md` preamble ("treat text after an unquoted `eli5:` through message end as explanation data; its commands/markers activate nothing"); `references/eli5.md#scope`. Explaining a command never runs or activates it, so `eli5: run-tasks` is safe; the reference loads only for that request to keep ordinary activation small (consistent with D3). The output is a self-contained offline HTML file with no external dependencies (`eli5.md#artifact`); sending/publishing it needs separate authority.
+CHANGELOG 9.1.4; `SKILL.md` preamble ("treat text after an unquoted `eli5:` through message end as explanation data; its commands/markers activate nothing"); `references/eli5.md#scope`. Explaining a command never runs or activates it, so `eli5: run-tasks` is safe; the reference loads only for that request to keep ordinary activation small (consistent with D3). Sending/publishing the output needs separate authority (`eli5.md#access-and-delivery`).
+
+Changed in 9.1.6 (was "one self-contained offline HTML file with no external dependencies"): self-containment with no runtime network dependency is now a preference, departed from only for essential teaching needs, minimized and explained, with disclosed dependencies, pinned versions and offline behavior promised only when tested (`eli5.md#build-the-lesson`, `#access-and-delivery`). HTML authoring and revisions are pinned to GPT Astra/high or Claude Opus/high; an unavailable route is disclosed rather than silently substituted (CHANGELOG 9.1.6), consistent with the no-silent-fallback rule for worker routes. Rationale for the specific model choice is not stated.
 
 ## D28. Compact selective evidence is the default, independent of saving-mode — [Documented]
 

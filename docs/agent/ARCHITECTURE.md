@@ -46,7 +46,7 @@ flowchart LR
 | `review.md` | worker settings, delegation, planning routes, result review, `3ways` |
 | `simple-check.md` | `simple-check` command (fresh independent read-only plan review → PASS/REVISE/BLOCKED) and the canonical `#check` that `planning.md` and `review.md` apply without adding stages (9.1.2) |
 | `batches.md` | `append-rounds` staging/advancement |
-| `eli5.md` | `eli5:` visual explanations: one self-contained offline HTML lesson (inline SVG/CSS, minimal JS, no network); payload never executes; loaded only for an unquoted `eli5:` request (9.1.4) |
+| `eli5.md` | `eli5:` visual explanations: an interactive animated HTML lesson, preferably one self-contained file with no runtime network dependency; authoring pinned to GPT Astra/high or Claude Opus/high; payload never executes; loaded only for an unquoted `eli5:` request (9.1.4, reworked 9.1.6) |
 | `features.md` | feature worktree lifecycle and handoffs; `#terminal-cli` / `#terminal-directory-transition` for the `agf` feature commands |
 | `looper.md` | looper contract (authoritative for runtime behavior) |
 | `setup.md` | first-time setup, AGENTS.md adoption in consumer projects, `#agf-command-setup` (generated `agf` shell function), `#detected-worker-defaults` (looper routes from detected `codex`/`claude`), `#empty-bootstrap` (one empty commit for repos without HEAD), `#standalone-initialization` (`agf init` contract and `.init-pending.owner` recovery) |

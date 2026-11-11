@@ -40,10 +40,11 @@ flowchart LR
 | --- | --- |
 | `configuration.md` | ag.json discovery/validation, switches, release-check scheduling |
 | `session.md` | claim/ownership, recovery, owner-input capture, project rules/backlog, round evidence |
-| `delivery.md` | STATUS/Ask/Reply rendering, receipt, archive, Git delivery, rename |
+| `delivery.md` | STATUS/Ask/Reply rendering, receipt, archive, `#questions-during-work` (new owner questions go in the devlog, mid-round in an `## Open questions` section; 9.1.10), Git delivery, rename |
 | `work.md` | task modes, execution, RUN/WIP, diffs; test-first (red → smallest green → refactor) for executable behavior changes (9.1.9) |
 | `planning.md` | design/tracker creation, plan-mode, gates |
-| `review.md` | worker settings, delegation, planning routes, result review, `3ways` |
+| `review.md` | worker settings, delegation, planning routes, result review, `#risk-triage` (`low`/`mid`/`high` per reviewed candidate; mid/high routes to deep review; 9.1.10), `3ways` |
+| `deep-review.md` | `deep-review` command and automatic mid/high deep review: fresh-context read-only inspection through existing review routes, adaptive checks, human handoff, review lessons in `<ag-dir>/sys-review.md` (9.1.10) |
 | `simple-check.md` | `simple-check` command (fresh independent read-only plan review → PASS/REVISE/BLOCKED) and the canonical `#check` that `planning.md` and `review.md` apply without adding stages (9.1.2) |
 | `batches.md` | `append-rounds` staging/advancement |
 | `eli5.md` | `eli5:` visual explanations: an interactive animated HTML lesson, preferably one self-contained file with no runtime network dependency; authoring pinned to GPT Astra/high or Claude Opus/high; payload never executes; loaded only for an unquoted `eli5:` request (9.1.4, reworked 9.1.6) |
@@ -53,7 +54,7 @@ flowchart LR
 | `upkeep.md`, `legacy-migration.md` | schema migration, Agentflow 8 migration, install replacement |
 | `invariants.md`, `project-rules.md` | system-invariant registry, shared project rules |
 | `ag.md` + `advisors/*.md` | optional advisor selection and prompts |
-| `copilot.md`, `windows.md`, `browser-testing.md`, `browfield.md`, `product-docs.md`, `product-docs-authoring.md`, `writing.md`, `saving-mode.md` | situational guidance |
+| `copilot.md`, `windows.md`, `browser-testing.md`, `brownfield.md` (renamed from `browfield.md` in 9.1.10), `product-docs.md`, `product-docs-authoring.md`, `writing.md`, `saving-mode.md` | situational guidance |
 
 - **Human docs** (`skills/agentflow/docs/`: `AG-GUIDE.md`/`AG-GUIDE.tw.md`, `CHEATSHEET.md`/`CHEATSHEET.tw.md`, `agv8-agv9-comparison.md`) and READMEs restate behavior for users. `references/looper.md#scope-and-maintenance` requires SKILL.md, configuration, review, both guides, cheatsheet and README to stay aligned when looper behavior changes.
 
@@ -67,6 +68,7 @@ All state is plain files written by the host, under the configured `ag-dir` (def
 | `<ag-dir>/<notebook-name>` | devlog: STATUS + append-only Ask/Reply rounds | `assets/.agentflow/devlog.md` |
 | `.<notebook>.owner` beside notebook | session claim JSON `{session, ask, claimed_at}` created with `wx` | — |
 | `<ag-dir>/backlog.md`, `<ag-dir>/sys-invariants.md`, optional `<ag-dir>/rules.md` | shared records | assets |
+| `<ag-dir>/sys-review.md` (checkout root, or an established review-knowledge record) | review lessons: verified reusable failure mechanisms; created by the owner-facing host on the first qualified lesson, never by delegates or looper tasks; read during risk triage (9.1.10, `deep-review.md#review-lessons`) | — |
 | `<ag-dir>/artifacts/A-NNN/` | designs, trackers, reports for an Ask (main/unmanaged checkouts) | — |
 | `<ag-dir>/features/<name>/artifacts/A-NNN/` | same, for a managed feature (9.1.8; the "selected artifact root" in `session.md#round-evidence`); reaches main at the same relative path by merge, so notebook links stay valid | — |
 | `<ag-dir>/.tmp/A-NNN.md` | durable workflow evidence (despite the name) | — |
@@ -108,7 +110,7 @@ Modules in `skills/agentflow/scripts/` (dependency direction: `agf.js → {loope
 - One serial integration lane (FIFO `ready` list, ties broken by group ID); at most one repair may overlap task work.
 - `depends_on` groups wait (no slot) until predecessors reach `state: done` (checked integration).
 - Target movement (9.1.0): `looper-integration.js:adopt_target` records a same-branch forward advance in `target_adoptions` and moves `expected_head` (at startup, workspace dispatch, integration start/observation, before landing, on races). Branch change, history rewrite, a foreign Git operation, or a completed integration missing from the target throws → `lane_error`. A checked result whose base was superseded is carried into a new merge attempt on the latest head with checks rerun.
-- Ordinary review relay: a CLI task writes a review request into its records; the coordinator launches a fresh read-only sibling session via `invoke('review')` (role `review` maps to the `acceptance` route in `select`), binds request/source hashes (`ordinary_review_proof`) and settles it before the task slot and claims release.
+- Ordinary review relay: a CLI task writes a review request into its records; the coordinator launches a fresh read-only sibling session via `invoke('review')` (role `review` maps to the `acceptance` route in `select`), binds request/source hashes (`ordinary_review_proof`) and settles it before the task slot and claims release. Since 9.1.10 the task host folds deep inspection into this same fresh reviewer and carries risk, handoff and lesson candidates in existing result/evidence text; this is prompt-defined (`review.md#looper-task-review`) with no new transport fields or coordinator change.
 
 ## Feature CLI runtime
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Agentflow 9 (skill/plugin/package name `agentflow`, version `9.1.9`; the 9.0.0-beta.1 prerelease was named aglite) is an **AI-agent skill**: a set of Markdown instructions that a coding assistant (Claude Code, Codex, Copilot, other hosts that support skills) loads to keep development work resumable. It gives a project a persistent "notebook" (devlog) where owner requests, decisions, answers and recovery pointers are saved, plus proportionate planning, review routing, Git delivery and isolated feature worktrees.
+Agentflow 9 (skill/plugin/package name `agentflow`, version `9.1.10`; the 9.0.0-beta.1 prerelease was named aglite) is an **AI-agent skill**: a set of Markdown instructions that a coding assistant (Claude Code, Codex, Copilot, other hosts that support skills) loads to keep development work resumable. It gives a project a persistent "notebook" (devlog) where owner requests, decisions, answers and recovery pointers are saved, plus proportionate planning, review routing, Git delivery and isolated feature worktrees.
 
 A small optional Node.js runtime behind one CLI, `agf`, has three bounded parts: the **looper** (`agf looper …`) executes a prepared queue of task groups in parallel Git worktrees, each task in a fresh agent session, and serially integrates results; the **terminal feature CLI** (`agf new-feature|merge-feature|drop-feature`, added in 9.1.0) runs the feature-worktree lifecycle from a shell; the **standalone initializer** (`agf init`, added in 9.1.2) creates Git plus the Agentflow scaffold in a fresh root without model calls.
 
@@ -11,7 +11,7 @@ Users: a human "owner" talking to a coding assistant ("host"). The host is the a
 ## Major use cases
 
 - Start/resume work with `godev` (records saved in `<ag-dir>/<notebook-name>`); fresh Git roots can also be initialized from a shell with `agf init [--lang <locale>]`.
-- Task modes: `fast-lane`, `skip-review`, `grill-me`, `3ways`, `advisors:`, `browfield`; read-only plan review with `simple-check [target]` (9.1.2); interactive animated HTML lesson with `eli5: <topic-or-command>` (9.1.4, reworked in 9.1.6; explains without executing).
+- Task modes: `fast-lane`, `skip-review`, `grill-me`, `3ways`, `advisors:`, `brownfield` (spelled `browfield` before 9.1.10); risk-routed verification with `deep-review [target]` (9.1.10); read-only plan review with `simple-check [target]` (9.1.2); interactive animated HTML lesson with `eli5: <topic-or-command>` (9.1.4, reworked in 9.1.6; explains without executing).
 - Stage later batches with `append-rounds` / `append-tasks`.
 - Feature worktrees: `new-feature`, `merge-feature`, `drop-feature` (host chat commands), or the terminal equivalents `agf new-feature|merge-feature|drop-feature` (aliases `newft`/`mergeft`/`dropft`).
 - Grouped parallel execution: `prepare-tasks`, `run-tasks`, `handle-tasks` → `agf looper run|status`; explicit post-run cleanup via `agf looper cleanup` or `run --cleanup`.
@@ -54,10 +54,11 @@ docs/agent/              this knowledge base (not shipped as part of the skill)
 | `skills/agentflow/SKILL.md` | Entry prompt. "Route before records" ordering and "Load only the applicable procedure" map. |
 | `skills/agentflow/references/configuration.md` | `ag.json` discovery, validation, switches, release check. |
 | `skills/agentflow/references/session.md` | Notebook claim (ownership), recovery, owner-input capture, round evidence. |
-| `skills/agentflow/references/delivery.md` | STATUS/Ask/Reply format, receipt, archive, Git delivery, notebook rename. |
+| `skills/agentflow/references/delivery.md` | STATUS/Ask/Reply format, receipt, archive, `#questions-during-work` (owner questions saved in the devlog, 9.1.10), Git delivery, notebook rename. |
 | `skills/agentflow/references/work.md` | Task modes, execution (incl. the test-first rule for executable behavior changes, 9.1.9), RUN/WIP checkpoints, diff handling. |
 | `skills/agentflow/references/planning.md` | Design/tracker criteria, `plan-mode`, gates. |
-| `skills/agentflow/references/review.md` | Worker settings, bounded assignment, planning routes, result review, `3ways`. |
+| `skills/agentflow/references/review.md` | Worker settings, bounded assignment, planning routes, result review (incl. `#risk-triage`, 9.1.10), `3ways`. |
+| `skills/agentflow/references/deep-review.md` | `deep-review` command and automatic mid/high deep review: fresh-context inspection, adaptive checks, human handoff, review lessons (9.1.10). |
 | `skills/agentflow/references/simple-check.md` | `simple-check` command and the canonical adequacy/scope/minimality `#check` reused by planning and review. |
 | `skills/agentflow/references/features.md` | `new-feature`/`merge-feature`/`drop-feature`; `#terminal-cli` owns the `agf` feature commands. |
 | `skills/agentflow/references/looper.md` | Looper contract (owns execution behavior). |

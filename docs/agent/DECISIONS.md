@@ -129,6 +129,18 @@ CHANGELOG 9.1.8; `references/session.md#round-evidence`, `references/features.md
 
 CHANGELOG 9.1.9; `references/work.md#execute-and-checkpoint`. A focused failing test comes first, then the smallest passing change, then refactoring while green; TDD may be claimed only with observed red/green evidence. Documentation-only, mechanical and test-only edits are exempt from an artificial red cycle. Rationale beyond the CHANGELOG is not stated.
 
+## D31. Risk-routed deep review reuses existing review routes — [Documented]
+
+CHANGELOG 9.1.10; `references/review.md#risk-triage`, `references/deep-review.md` intro and `#fresh-context-inspection`. Every reviewed change gets a `low | mid | high` rating; only mid/high (or an explicit `deep-review`) adds deep inspection. It prefers fresh context but uses the existing result-review routes, controls and waivers, adds no advisor, approval gate or second ordinary review, and restores no worker waived by host routes, fast-lane or skip-review. Looper tasks fold it into their existing fresh reviewer with no transport or coordinator change. Agent checks never stand in for human review; the handoff points humans to risky paths. The CHANGELOG states no measured behavioral improvement.
+
+## D32. New owner questions live in the devlog — [Documented]
+
+Changed in 9.1.10 (was: questions stayed at "existing answer locations", which could be trackers, designs or reports). `references/delivery.md#questions-during-work`: new owner questions, including mid-round gates, interviews and approval requests, go in the devlog's pre-Reply `## Open questions` section with stable Q-NNN-n IDs; trackers/designs/reports only link them. Historical question/answer fields are preserved for recovery; off-record, lifecycle and looper queue/inbox protocols keep their own rules (CHANGELOG 9.1.10). Rationale beyond the CHANGELOG is not stated.
+
+## D33. Inferred goals and advice grant no authority — [Documented]
+
+CHANGELOG 9.1.10; `SKILL.md` intro ("Infer goals as hypotheses … without expanding execution scope"), `references/session.md#activate-and-recover` step 5, `references/writing.md` (Lead with the answer). Goal inference, recommendations and anticipating next needs are part of ordinary work, scaled to the request with no mandatory insight/template or new advisor. Explicit requirements prevail over inferred intent; advice and agreement with an idea's merits grant no new authority, while existing workflow permissions and authorized normal substeps remain.
+
 ## Unknowns
 
 - Why schema numbers jumped (aglite-5 → 9 → 13) beyond the migration tables in `upkeep.md` / `legacy-migration.md`.

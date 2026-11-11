@@ -20,6 +20,7 @@ Paths are relative to `skills/agentflow/`.
 - **STATUS** — top section of the notebook: Project, Notebook, Checkout, Branch, Current, Proven, Next, Archived eras (+ Stream, Cleanup, Session for features). Labels are localized by `use-lang`.
 - **Ask / Reply / round** — `# → Ask / A-NNN` heading with captured owner input, then `# → Reply / A-NNN`, then the next Ask. A-NNN is the round ID.
 - **RUN / WIP** — optional milestone (`[RUN-NNN]`) and ten-minute checkpoint (`[WIP-NNN]`) entries; controlled by `omit-run`, `omit-wip`.
+- **Open questions** — localized `## Open questions` section appended before Reply in an open round to hold new owner questions and current-round resolutions; each question has a unique Q-NNN-n, a suggested-default paragraph and one `- ans:` field (`references/delivery.md#questions-during-work`, 9.1.10).
 - **Receipt** — chat line `→ Updated: A-NNN | <notebook>` plus working directory, shown instead of the answer when `inline-reply: off`.
 - **Claim / owner marker** — `.<notebook-basename>.owner` JSON `{session, ask, claimed_at}` created exclusively; coordinates sessions.
 - **Capture** — copying each owner chat message into the active Ask with `+ ` paragraph prefixes.
@@ -30,6 +31,7 @@ Paths are relative to `skills/agentflow/`.
 - **Tracker** — task-state record (`## Tasks` with `T-n`, `## Recovery`); statuses TODO/DOING/BLOCKED/DONE.
 - **Design** — contract record with `## Invariants` (INV-n), `## Acceptance criteria` (AC-n), `## Validation`, `## Minimality check`.
 - **System invariants / registry** — accepted durable guarantees `SYS-INV-n` in `<ag-dir>/sys-invariants.md`.
+- **Review lessons / `sys-review.md`** — verified reusable review failure mechanisms in checkout-root `<ag-dir>/sys-review.md`, written only by the owner-facing host; advisory, grant no authority (`references/deep-review.md#review-lessons`, 9.1.10).
 - **Backlog** — future work items `B-NNN` in `<ag-dir>/backlog.md`; proposed or deferred, never auto-scheduled.
 - **Project rules** — shared baseline `references/project-rules.md` plus optional local `<ag-dir>/rules.md`.
 - **Archive** — `<notebook-stem>.archive.md`, receives old rounds when the notebook exceeds 750 lines.
@@ -49,7 +51,10 @@ Paths are relative to `skills/agentflow/`.
 - **Check (canonical)** — the adequacy → scope → subtraction → trace work → execution cost → total burden → proof checklist (trace/cost steps added in 9.1.4) in `references/simple-check.md#check`, applied by planning and review at their existing checkpoints without adding stages.
 - **agf init** — standalone initializer for a fresh Git root (`scripts/init.js`, `references/setup.md#standalone-initialization`).
 - **3ways** — Claude and Codex draft blind, exchange and debate, then Codex writes the final synthesis with dispositions; the host verifies and relays but does not rewrite it (`references/review.md#3ways-compare-before-implementation`, 9.1.0).
-- **browfield** — optional eight-gate brownfield procedure (spelling is intentional in this repo).
+- **brownfield** — optional eight-gate brownfield procedure (`references/brownfield.md`); spelled `browfield` (`browfield.md`) before 9.1.10, and the old spelling no longer triggers.
+- **deep-review** — `deep-review [target]`: forces deep review at any risk; also automatic for mid/high (`references/deep-review.md`, 9.1.10).
+- **Risk triage / risk level** — `low | mid | high` rating of a reviewed candidate by behavior, blast radius, reversibility and uncertainty, reported separately from defects/verdict (`references/review.md#risk-triage`, 9.1.10).
+- **Human handoff** — concise owner-facing summary from deep review naming risk, decisions, ranked locations for humans to confirm and gaps; not an approval (`references/deep-review.md#human-handoff`).
 - **append-rounds / append-tasks** — stage a later batch.
 - **show-diff** — present a verified diff with reasons.
 - **plan-order / review-order** — route selection for planning and result review: `3ways|external|native|host` and `external|native|host`.

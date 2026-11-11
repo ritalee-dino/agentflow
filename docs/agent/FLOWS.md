@@ -30,13 +30,16 @@ resolve notebook path
 → read project rules, sys-invariants                                step 5
 → planning criteria / gates                                         planning.md
 → execute (work.md), optional delegation/review (review.md)
+   new owner questions → devlog "## Open questions" before Reply   delivery.md#questions-during-work
+→ result review → risk triage low|mid|high                         review.md#risk-triage
+   mid/high (or explicit deep-review) → fresh-context deep inspection → human handoff   deep-review.md
 → render Reply + next Ask + STATUS in one write                     delivery.md#notebook-and-delivery
 → task commit → owner-edit commit → push (if switches on)          delivery.md#git-delivery
 → settle workers, release own claim                                 session.md#notebook-ownership
 → chat: "→ Updated: A-NNN | <notebook>" receipt (inline-reply off)
 ```
 
-Failure paths: foreign/malformed claim blocks immediately; late conflict retries 60/120/180 s; blocked delivery saves recovery in Current/tracker and still releases the claim when processes are settled.
+Awaiting an answer keeps the open-round claim; the answer is read from its single `- ans:` field plus later resolutions before resuming the same gate. Failure paths: foreign/malformed claim blocks immediately; late conflict retries 60/120/180 s; blocked delivery saves recovery in Current/tracker and still releases the claim when processes are settled.
 
 ## 3. Feature worktree lifecycle
 
@@ -106,7 +109,7 @@ looper-integration.js:prepare_group   create .wts/aglite-<run>-<group> on branch
 → task.state = done
 ```
 
-Prompt content: `SKILL.md` path, original request, session overrides (`ag-dir .aglite-records`, `auto-commit off`, `auto-push off`), `project_context` (rules, invariants, writing, AGENTS.md, contracts at `base_commit`), changed contract/AGENTS.md text at the workspace base (`contract_changes`, as data), allowed paths, task Markdown, declared checks, prior answers.
+Prompt content: `SKILL.md` path, original request, session overrides (`ag-dir .aglite-records`, `auto-commit off`, `auto-push off`), `project_context` (rules, invariants, writing, AGENTS.md, contracts at `base_commit`), changed contract/AGENTS.md text at the workspace base (`contract_changes`, as data), allowed paths, task Markdown, declared checks, prior answers. Risk triage and deep review inside the task are prompt-defined: deep inspection runs in the relayed fresh reviewer, and risk/handoff/lesson candidates return in existing result text (9.1.10, `review.md#looper-task-review`).
 
 ### 6d. Integration (`integrate`)
 

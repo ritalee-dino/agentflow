@@ -22,7 +22,8 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 - **Definition**: `references/session.md#activate-and-recover`, `#notebook-ownership`, `#round-evidence`; rendering in `references/delivery.md#notebook-and-delivery`.
 - **Persistence**: `<ag-dir>/<notebook-name>`, `.<notebook>.owner`, `<ag-dir>/.tmp/A-NNN.md`, `<ag-dir>/artifacts/A-NNN/` (managed features: `<ag-dir>/features/<name>/artifacts/A-NNN/` since 9.1.8; established locations and explicit destinations are kept). Template `assets/.agentflow/devlog.md`.
 - **Rules worth knowing**: claim via exclusive create (`wx`); late conflicts retry after 60/120/180 s; owner messages captured with `+ ` prefix; receipt `→ Updated: A-NNN | <notebook>`; archive above 750 lines. New workflow evidence (9.1.4, `session.md#round-evidence`) is compact and selective by default, with saving-mode on or off: ordered fields Scope, Checks, Findings, Resume, empty fields omitted, no file when nothing needs retaining; routine output/transcripts are omitted, fixed design/tracker/feature/looper formats and old evidence are untouched.
-- **Code dependency**: the looper parses the same Ask/Reply heading shape in `scripts/looper.js:notebook_rounds` / `ordinary_closeout` (tests: "ordinary closeout …", "CRLF task and closeout readers …").
+- **Owner questions (9.1.10)**: new owner questions — including brownfield gates, `grill-me` interviews and `gate-design`/`gate-tracker` approval requests — are saved directly in the selected devlog (`references/delivery.md#questions-during-work`). While a round is open they go in one localized `## Open questions` section before Reply (an allowed mid-round write that does not close the round); each has a unique Q-NNN-n, suggested-default paragraph and one empty `- ans:`. Current/tracker Recovery link the question ID with the blocked gate; trackers, designs and reports never hold new questions or answer fields (historical fields are preserved for recovery). Owner-message capture inserts before the first Open questions/RUN/WIP/Reply heading (`session.md#activate-and-recover` step 4).
+- **Code dependency**: the looper parses the same Ask/Reply heading shape in `scripts/looper.js:notebook_rounds` / `ordinary_closeout` (tests: "ordinary closeout …", "CRLF task and closeout readers …"). It matches only top-level `# ` headings, so the level-2 `## Open questions` section does not affect closeout detection (confirmed from the regex; no test covers it).
 
 ## F3. Configuration (`ag.json`) and migration
 
@@ -54,16 +55,18 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 
 ## F5. Task modes and execution
 
-- **Commands**: `fast-lane`, `skip-review`, `grill-me`, `browfield`, `show-diff`.
-- **Definition**: `references/work.md#task-modes`, `#execute-and-checkpoint`, `#diff-handling`; `references/browfield.md`.
+- **Commands**: `fast-lane`, `skip-review`, `grill-me`, `brownfield`, `deep-review` (F7c), `show-diff`. `brownfield` was spelled `browfield` before 9.1.10; the old spelling is no longer a trigger word.
+- **Definition**: `references/work.md#optional-brownfield-path`, `#task-modes`, `#execute-and-checkpoint`, `#diff-handling`; `references/brownfield.md`.
 - **Records**: RUN/WIP entries controlled by `omit-run` / `omit-wip`.
 - **Test-first (9.1.9)**: executable behavior changes start with a focused failing test, then the smallest passing change, then refactoring while green; red/green evidence is recorded. Documentation-only, mechanical and test-only edits use relevant checks instead; an infeasible pre-change test needs a recorded reason, alternative proof and remaining gap (`references/work.md#execute-and-checkpoint`).
+- **Goal inference (9.1.10)**: the host infers outcome/scope as hypotheses, anticipates the next consequential need, and proceeds on reasonable assumptions for low-impact ambiguity (naming those that affect the result). Inferred intent never overrides explicit requirements, and advice, inferred intent or agreement with an idea grant no new authority; authorized normal substeps finish without repeated approval (`SKILL.md` intro, `references/session.md#activate-and-recover` step 5).
 - **Browser checks**: affected web journeys/requested end-to-end checks read `references/browser-testing.md` before tool selection (routed from `SKILL.md#load-only-the-applicable-procedure` and `references/project-rules.md`). Since 9.1.4 Stagehand/`browse` routes are kept regardless of browser plugin presence, and their help, dependencies and startup must be inspected before reporting browser access unavailable.
 
 ## F6. Planning, designs, trackers and gates
 
 - **Definition**: `references/planning.md` (creation criteria, design sections `## Invariants`, `## Acceptance criteria`, `## Validation`, `## Minimality check`; tracker statuses TODO/DOING/BLOCKED/DONE), `#planning-modes-and-gates` (`plan-mode`, `gate-design`, `gate-tracker`).
 - **Check (9.1.2)**: designs start with the plain-language overview from `references/writing.md`; adequacy/scope/minimality checks before edits, at closeout and before implementation apply `references/simple-check.md#check` (no extra stage or worker).
+- **Gate questions (9.1.10)**: `gate-design` / `gate-tracker` approval questions are saved in the devlog and linked from Current/tracker (`planning.md#planning-modes-and-gates`, F2 owner questions).
 - **Routing**: `plan-order` in `references/review.md#planning-routes` (3ways → external → native → host). Since 9.1.0, simple understood low-risk planning (including simple task grouping) stays in the host; complex planning uses the configured route.
 
 ## F7. Delegation and result review
@@ -73,6 +76,18 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 - **3ways (9.1.0)**: Claude and Codex draft blind, then exchange and debate; Codex writes the final synthesis with dispositions (dissent recorded, consensus only on identical accepted content). On any route using Codex, Codex owns final planning content.
 - **External integrations**: `codex exec`, `claude -p` example command shapes in `review.md`.
 - **Check reuse (9.1.2)**: blind drafts and result review's Outcome/Minimality items apply `references/simple-check.md#check`.
+- **Risk triage (9.1.10)**: result review of changed code, operational prompts, product artifacts or implementation-ready contracts — including host-only, fast-lane and skip-review review — returns a `low | mid | high` risk separately from defects/verdict (`review.md#inspect-the-finished-result` Risk item, `#risk-triage`, `work.md#records-and-review`). High covers auth/permissions, money, destructive/migrated data, secrets, deployment/external-action authority, public contracts, core invariants or system boundaries; file type or passing checks alone cannot justify low. The host keeps the higher plausible rating under uncertainty and routes mid/high to deep review (F7c) before closeout/gates. Ordinary Q&A, explanations and examples skip triage.
+
+## F7c. Deep review (`deep-review`, 9.1.10)
+
+- **Command**: unquoted `deep-review [target]` (also a `SKILL.md` trigger word); also triggered automatically for mid/high risk after ordinary review (F7). Without a target it uses an unambiguous active or just-finished result, otherwise asks.
+- **Definition**: `references/deep-review.md` (`#fresh-context-inspection`, `#select-and-prove`, `#human-handoff`, `#review-lessons`); command rule in `references/work.md#task-modes`; load rule in `SKILL.md#load-only-the-applicable-procedure`.
+- **Behavior**: substantial inspection prefers a fresh-context read-only worker on the existing result-review routes (Codex spawns with `fork_turns: "none"`), folded into an already-needed separate review when possible; only missing checks are added. Checks are chosen per remaining failure mechanism (API/version verification, duplication, over-mocking, complexity/coverage incl. CRAP as diagnostic signals, properties, targeted mutation, ordering/restart, browser journeys) with no global thresholds. Host-only routes, fast-lane and skip-review keep direct host checks and handoff without restoring waived workers. Probes write only disposable scratch/copies; persistent tests/fixes need existing implementation authority.
+- **Output**: one concise localized human handoff at the existing answer destination before any approval: candidate, risk/reason, decisions, outcome, ranked file/diff locations to confirm, gaps; high risk marks sensitive paths. Risk disposition and handoff are owner answers; proof is linked, not copied (`session.md#round-evidence`).
+- **Persistence**: optional review lessons in `<ag-dir>/sys-review.md` (or an established review-knowledge record), written only by the owner-facing host (`project-rules.md` Shared records); delegates and looper tasks return lesson candidates.
+- **Looper**: inside a looper task the deep inspection is folded into the relayed fresh ordinary reviewer; the owner-facing host surfaces mid/high actions and reconciles lesson candidates when reporting a completed run (`review.md#looper-task-review`, `looper.md#scope-and-maintenance`). No coordinator code change.
+- **Authority**: grants inspection and safe verification only — no implementation, provider selection, new approval gate or advisor.
+- **Tests**: none (prompt).
 
 ## F7b. Simplicity check (`simple-check`, 9.1.2)
 
@@ -83,7 +98,7 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 
 ## F8. Advisors
 
-- **Command**: `advisors: <names>`, `grill-me` (requirements interview).
+- **Command**: `advisors: <names>`, `grill-me` (requirements interview; since 9.1.10 its owner rounds use devlog questions, F2).
 - **Definition**: `references/ag.md` (selection), `references/advisors/*.md` (one prompt each). `final-audit` reuses `acceptance` settings.
 
 ## F9. Append rounds (batches)
@@ -136,7 +151,7 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 
 ## F13. Shared records: project rules, backlog, system invariants
 
-- **Definition**: `references/project-rules.md`, `references/session.md#project-rules-and-backlog`, `references/invariants.md`.
+- **Definition**: `references/project-rules.md`, `references/session.md#project-rules-and-backlog`, `references/invariants.md`. Since 9.1.10 the owner-facing host is also the only writer of review lessons (`<ag-dir>/sys-review.md`, F7c).
 - **Templates**: `assets/.agentflow/backlog.md` (B-NNN), `assets/.agentflow/sys-invariants.md` (SYS-INV-n).
 - **Looper link**: `looper.js:project_context` injects `project-rules.md`, `invariants.md`, `writing.md`, the project `AGENTS.md` and queue `contracts` into every task/repair/review prompt.
 
@@ -144,7 +159,7 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 
 - **Switch**: `use-lang` (locale for all new human text; machine tokens unchanged).
 - **Definition**: `references/configuration.md#discovery-and-validation` (use-lang bullet), `references/writing.md` (since 9.1.2 every design/report opens with a mental-model overview), `references/saving-mode.md`.
-- **Writing rules added in 9.1.7–9.1.9** (`references/writing.md`): *Guide reading* — open with what readers learn and why; long or multi-audience documents add a compact linked contents list and purpose-based reading paths. *CJK spacing* — one space between CJK characters and adjacent English words/numbers in new prose (quotes, code, identifiers, paths, historical content untouched). *Question context in external answers* (9.1.9) — directly below each answer heading in a report/file outside the devlog, quote at least the first 50 Unicode code points of each answered question (whole if shorter), redacting credentials. The pre-delivery check covers these. Because `looper.js:project_context` injects `writing.md`, looper task prompts receive them too.
+- **Writing rules added in 9.1.7–9.1.9** (`references/writing.md`): *Guide reading* — open with what readers learn and why; long or multi-audience documents add a compact linked contents list and purpose-based reading paths. *CJK spacing* — one space between CJK characters and adjacent English words/numbers in new prose (quotes, code, identifiers, paths, historical content untouched). *Question context in external answers* (9.1.9) — directly below each answer heading in a report/file outside the devlog, quote at least the first 50 Unicode code points of each answered question (whole if shorter), redacting credentials. *Lead with the answer* (9.1.10) — recommendations give the best-supported direction, its decisive reason and a concrete next step when useful, scaled to the request with no obligatory insight, goal restatement or closing question. The pre-delivery check covers these. Because `looper.js:project_context` injects `writing.md`, looper task prompts receive them too.
 - **Code link**: `notebook_rounds` deliberately ignores heading labels so localized `# → <label> / A-NNN` headings validate.
 
 ## F15. Release check and installation upkeep
@@ -173,6 +188,8 @@ Paths below are relative to `skills/agentflow/` unless they start with `.claude-
 | A setting's meaning/default | `references/configuration.md#switch-effects`, `docs/CHEATSHEET.md` (zh-TW: `docs/CHEATSHEET.tw.md`) |
 | Fresh project initialization | `references/setup.md#standalone-initialization`, `scripts/init.js:initialize` |
 | Plan simplicity review | `references/simple-check.md` |
+| Risk levels, deep review, human handoff | `references/review.md#risk-triage`, `references/deep-review.md` |
+| Where owner questions are saved | `references/delivery.md#questions-during-work` |
 | `eli5:` visual lessons | `references/eli5.md`, `SKILL.md` preamble |
 | Config-discovery stop messages | `scripts/feature-common.js:discover` |
 | Differences from Agentflow 8 | `docs/agv8-agv9-comparison.md`, `references/legacy-migration.md` |

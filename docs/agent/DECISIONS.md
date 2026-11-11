@@ -121,6 +121,14 @@ Changed in 9.1.6 (was "one self-contained offline HTML file with no external dep
 
 CHANGELOG 9.1.4 ("No new switch or historical-record deletion"); `references/session.md#round-evidence`: new workflow evidence keeps only Scope/Checks/Findings/Resume content needed for recovery, required proof or consequential decisions, "with saving-mode on or off; no line cap or extra report". Fixed design/tracker/feature/looper formats and existing evidence are not compacted.
 
+## D29. Feature records, including artifacts, live in the feature namespace and reserve its name — [Documented] + [Implemented]
+
+CHANGELOG 9.1.8; `references/session.md#round-evidence`, `references/features.md` (managed notebook bullet, new-feature step 2); `feature.js:create`, `history`, `assertTrackable`. Changed in 9.1.8 (was: feature round artifacts under the checkout's `<ag-dir>/artifacts/A-NNN/`, and the CLI blocked creation only on committed main records under `<ag-dir>/features/<name>/`, with "host decision required"). Placing artifacts beside the feature devlog keeps relative links valid after merge and keeps same-numbered main/feature Asks from colliding. Retained records block name reuse instead of reviving old work; there is still no permanent tombstone. Existing records and explicit destinations keep their locations. Tests: see F11b in FEATURES.md.
+
+## D30. Test-first for executable behavior changes — [Documented]
+
+CHANGELOG 9.1.9; `references/work.md#execute-and-checkpoint`. A focused failing test comes first, then the smallest passing change, then refactoring while green; TDD may be claimed only with observed red/green evidence. Documentation-only, mechanical and test-only edits are exempt from an artificial red cycle. Rationale beyond the CHANGELOG is not stated.
+
 ## Unknowns
 
 - Why schema numbers jumped (aglite-5 → 9 → 13) beyond the migration tables in `upkeep.md` / `legacy-migration.md`.

@@ -41,7 +41,7 @@ flowchart LR
 | `configuration.md` | ag.json discovery/validation, switches, release-check scheduling |
 | `session.md` | claim/ownership, recovery, owner-input capture, project rules/backlog, round evidence |
 | `delivery.md` | STATUS/Ask/Reply rendering, receipt, archive, Git delivery, rename |
-| `work.md` | task modes, execution, RUN/WIP, diffs |
+| `work.md` | task modes, execution, RUN/WIP, diffs; test-first (red → smallest green → refactor) for executable behavior changes (9.1.9) |
 | `planning.md` | design/tracker creation, plan-mode, gates |
 | `review.md` | worker settings, delegation, planning routes, result review, `3ways` |
 | `simple-check.md` | `simple-check` command (fresh independent read-only plan review → PASS/REVISE/BLOCKED) and the canonical `#check` that `planning.md` and `review.md` apply without adding stages (9.1.2) |
@@ -67,7 +67,8 @@ All state is plain files written by the host, under the configured `ag-dir` (def
 | `<ag-dir>/<notebook-name>` | devlog: STATUS + append-only Ask/Reply rounds | `assets/.agentflow/devlog.md` |
 | `.<notebook>.owner` beside notebook | session claim JSON `{session, ask, claimed_at}` created with `wx` | — |
 | `<ag-dir>/backlog.md`, `<ag-dir>/sys-invariants.md`, optional `<ag-dir>/rules.md` | shared records | assets |
-| `<ag-dir>/artifacts/A-NNN/` | designs, trackers, reports for an Ask | — |
+| `<ag-dir>/artifacts/A-NNN/` | designs, trackers, reports for an Ask (main/unmanaged checkouts) | — |
+| `<ag-dir>/features/<name>/artifacts/A-NNN/` | same, for a managed feature (9.1.8; the "selected artifact root" in `session.md#round-evidence`); reaches main at the same relative path by merge, so notebook links stay valid | — |
 | `<ag-dir>/.tmp/A-NNN.md` | durable workflow evidence (despite the name) | — |
 | `<notebook-stem>.archive.md` | archived rounds when notebook > 750 lines | — |
 | `<ag-dir>/features/<name>/<name>.devlog.md` | feature notebook inside `.wts/ft-<name>` | — |
@@ -88,7 +89,9 @@ Modules in `skills/agentflow/scripts/` (dependency direction: `agf.js → {loope
 | `looper-report.js` | presentation only: progress/heartbeat lines, final summary, `results.md` and `evidence/run-<time>-<uuid>.txt`, en/zh-TW strings; never affects scheduling or exit codes | `observer`, `summary`, `details`, `save_report`, `dictionary`, `resolve_locale`, `terminal_text` |
 | `looper-state.js` | safe path checks (no symlink/escape), atomic `write_json`, exclusive claims, process identity (Linux `/proc`, Windows CIM via PowerShell, `ps lstart` elsewhere) | `safe_path`, `inspect_path`, `write_json`, `read_json`, `acquire_claim`, `verify_claim`, `release_claim`, `takeover_claim`, `process_identity`, `process_alive`, `writer_stopped` |
 
-### Looper persistence (run-root = `<ag-dir>/artifacts/A-NNN-<name>/planned/`)
+### Looper persistence (run-root = `<artifact-root>/A-NNN-<name>/planned/`)
+
+`prepare-tasks` places the run-root under the selected artifact root: `<ag-dir>/features/<feature>/artifacts/` in a managed feature, otherwise `<ag-dir>/artifacts/` (9.1.8, `looper.md#prepare-and-route`). This is prompt-defined; the coordinator receives the run-root path explicitly and does not derive it.
 
 - `queue.json` (schema 2) — single source of truth for scheduling, progress, attempts, questions, handoffs, integration; written only by the coordinator through `save()` inside `looper.js:run`, which verifies both claims and that the file was not changed externally.
 - `request.md` + `request_sha256`, `group-NNN.md` (task sections `## T01`).

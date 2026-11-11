@@ -25,7 +25,8 @@ Paths are relative to `skills/agentflow/`.
 - **Capture** — copying each owner chat message into the active Ask with `+ ` paragraph prefixes.
 - **Off-record** — exchange marked with `nolog:`/`noop:`/`off:`/`skip:`; executed but not recorded.
 - **Idle shortcut** — bare activation with no unfinished work: ask for next request without claiming.
-- **Round evidence** — workflow proof stored in `<ag-dir>/.tmp/A-NNN.md` or `<ag-dir>/artifacts/A-NNN/`, linked from Current, kept out of the devlog body. Since 9.1.4 new evidence uses the compact selective fields Scope → Checks → Findings → Resume, omitting empty fields and routine output (`references/session.md#round-evidence`).
+- **Round evidence** — workflow proof stored in `<ag-dir>/.tmp/A-NNN.md` or the artifact root's `A-NNN/`, linked from Current, kept out of the devlog body. Since 9.1.4 new evidence uses the compact selective fields Scope → Checks → Findings → Resume, omitting empty fields and routine output (`references/session.md#round-evidence`).
+- **Artifact root (selected)** — where round artifacts, prepared looper runs and ignored-proof fallbacks go: `<ag-dir>/features/<name>/artifacts/` in a managed feature (9.1.8), otherwise `<ag-dir>/artifacts/` (`references/session.md#round-evidence`).
 - **Tracker** — task-state record (`## Tasks` with `T-n`, `## Recovery`); statuses TODO/DOING/BLOCKED/DONE.
 - **Design** — contract record with `## Invariants` (INV-n), `## Acceptance criteria` (AC-n), `## Validation`, `## Minimality check`.
 - **System invariants / registry** — accepted durable guarantees `SYS-INV-n` in `<ag-dir>/sys-invariants.md`.
@@ -67,12 +68,13 @@ Paths are relative to `skills/agentflow/`.
 - **default-editor** — optional top-level `ag.json` key (default `vscode` → `code`) used by `agf new-feature --open`.
 - **merge-state.json** — feature CLI merge recovery journal under `<ag-dir>/features/<name>/`, with phases `prepared … complete`.
 - **Retire** — mark a feature merged/dropped; optional Trash-based removal.
+- **Name reservation** — retained records under `<ag-dir>/features/<name>/` (local or committed in main) block creating a new feature with that name; choose a fresh name (9.1.8).
 
 ## Looper
 
 - **Looper / coordinator** — `scripts/looper.js:run`; the only writer of `queue.json`.
 - **agf** — CLI launcher (`scripts/agf.js:main`): `init`, `looper run|status|cleanup`, the terminal feature commands and `shell`. The pre-9.1.0 spelling `agf loop …` no longer parses.
-- **Run-root** — the `planned/` directory under `<ag-dir>/artifacts/A-NNN-<name>/` containing `queue.json`.
+- **Run-root** — the `planned/` directory under `<artifact-root>/A-NNN-<name>/` containing `queue.json`.
 - **Queue** — `queue.json` schema 2: run_id, repo, target_branch, base_commit, request + sha256, authorization, checks, integration_checks, groups.
 - **Group** — ordered tasks run sequentially in one worktree (`.wts/aglite-<run_id>-<group>`); optional `depends_on` earlier groups.
 - **Task** — `## T01` section in `group-NNN.md` with `allowed_paths` and `checks`.

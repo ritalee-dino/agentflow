@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Agentflow 9 (skill/plugin/package name `agentflow`, version `9.1.6`; the 9.0.0-beta.1 prerelease was named aglite) is an **AI-agent skill**: a set of Markdown instructions that a coding assistant (Claude Code, Codex, Copilot, other hosts that support skills) loads to keep development work resumable. It gives a project a persistent "notebook" (devlog) where owner requests, decisions, answers and recovery pointers are saved, plus proportionate planning, review routing, Git delivery and isolated feature worktrees.
+Agentflow 9 (skill/plugin/package name `agentflow`, version `9.1.9`; the 9.0.0-beta.1 prerelease was named aglite) is an **AI-agent skill**: a set of Markdown instructions that a coding assistant (Claude Code, Codex, Copilot, other hosts that support skills) loads to keep development work resumable. It gives a project a persistent "notebook" (devlog) where owner requests, decisions, answers and recovery pointers are saved, plus proportionate planning, review routing, Git delivery and isolated feature worktrees.
 
 A small optional Node.js runtime behind one CLI, `agf`, has three bounded parts: the **looper** (`agf looper …`) executes a prepared queue of task groups in parallel Git worktrees, each task in a fresh agent session, and serially integrates results; the **terminal feature CLI** (`agf new-feature|merge-feature|drop-feature`, added in 9.1.0) runs the feature-worktree lifecycle from a shell; the **standalone initializer** (`agf init`, added in 9.1.2) creates Git plus the Agentflow scaffold in a fresh root without model calls.
 
@@ -55,7 +55,7 @@ docs/agent/              this knowledge base (not shipped as part of the skill)
 | `skills/agentflow/references/configuration.md` | `ag.json` discovery, validation, switches, release check. |
 | `skills/agentflow/references/session.md` | Notebook claim (ownership), recovery, owner-input capture, round evidence. |
 | `skills/agentflow/references/delivery.md` | STATUS/Ask/Reply format, receipt, archive, Git delivery, notebook rename. |
-| `skills/agentflow/references/work.md` | Task modes, execution, RUN/WIP checkpoints, diff handling. |
+| `skills/agentflow/references/work.md` | Task modes, execution (incl. the test-first rule for executable behavior changes, 9.1.9), RUN/WIP checkpoints, diff handling. |
 | `skills/agentflow/references/planning.md` | Design/tracker criteria, `plan-mode`, gates. |
 | `skills/agentflow/references/review.md` | Worker settings, bounded assignment, planning routes, result review, `3ways`. |
 | `skills/agentflow/references/simple-check.md` | `simple-check` command and the canonical adequacy/scope/minimality `#check` reused by planning and review. |
@@ -115,7 +115,7 @@ Tests create real temporary Git repositories and spawn processes; many have 30 s
 - `skills/agentflow/scripts/looper-agent.test.js` — provider launch failures: `failure.json` diagnostics and evidence identity, missing executables, result failures on exit 0.
 - `skills/agentflow/scripts/looper-report.test.js` — progress/heartbeat formatting, summaries, saved reports, locale.
 - `skills/agentflow/scripts/looper-cleanup.test.js` — explicit cleanup preconditions, Trash identity proofs, crash/retry.
-- `skills/agentflow/scripts/feature.test.js`, `feature-merge.test.js`, `feature-shell.test.js` — feature CLI create/drop, merge/recovery, shell bindings and cd channel.
+- `skills/agentflow/scripts/feature.test.js`, `feature-merge.test.js`, `feature-shell.test.js` — feature CLI create/drop, merge/recovery, shell bindings and cd channel; since 9.1.8 also retained-record name reservation, feature-namespace artifact ignore preflight and main/feature artifact isolation across merges.
 - `skills/agentflow/scripts/init.test.js` — `agf init`: bootstrap and generated-only commit, repeat no-op, refusals (nested/linked/detached/feature roots, partial records, staged/untracked AGENTS), configuration-discovery warnings (bounded examples, en/zh-TW, no writes; 9.1.4), retained reservation on failure, concurrency, locale fallback, CLI route detection (skipped on Windows).
 - Prompt behavior (SKILL.md/references) has **no automated tests** in this repo.
 

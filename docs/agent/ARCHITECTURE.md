@@ -39,12 +39,14 @@ flowchart LR
 | Reference | Owns |
 | --- | --- |
 | `configuration.md` | ag.json discovery/validation, switches, release-check scheduling |
-| `session.md` | claim/ownership, recovery, owner-input capture, project rules/backlog, round evidence |
-| `delivery.md` | STATUS/Ask/Reply rendering, receipt, archive, `#questions-during-work` (new owner questions go in the devlog, mid-round in an `## Open questions` section; 9.1.10), Git delivery, rename |
+| `session.md` | claim/ownership, recovery, owner-input capture, project rules/backlog, `#evidence-storage` (optional `save-evidence` switch decides whether separate round evidence is written or read; 9.1.11), round evidence |
+| `delivery.md` | STATUS/Ask/Reply rendering, receipt, archive, `#questions-during-work` (new owner questions go in the devlog, mid-round in an `## Open questions` section, 9.1.10; yielding for answers closes the round and releases the settled claim, 9.1.11), Git delivery, rename |
 | `work.md` | task modes, execution, RUN/WIP, diffs; test-first (red → smallest green → refactor) for executable behavior changes (9.1.9) |
-| `planning.md` | design/tracker creation, plan-mode, gates |
+| `planning.md` | design/tracker creation, `#specification-readiness-and-handoff` (DRAFT vs ready scope for existing designs; 9.1.11), plan-mode, gates |
+| `spec-out.md`, `spec-out-template.md`, `spec-out-github.md` | `spec-out` command: interview → Tech/Art investigation → optional prototype → one `design.md` (bundled template) plus linked `tracker.md`; GitHub collaboration rules load only when GitHub is the selected hub; grants no implementation or publication authority (9.1.11) |
+| `ux-prototype.md` | sole method for authorized UX prototype planning/creation/revision, inside or outside `spec-out`: synthetic-data isolation, fidelity decisions, UX report, review tour, human acceptance limits (9.1.11) |
 | `review.md` | worker settings, delegation, planning routes, result review, `#risk-triage` (`low`/`mid`/`high` per reviewed candidate; mid/high routes to deep review; 9.1.10), `3ways` |
-| `deep-review.md` | `deep-review` command and automatic mid/high deep review: fresh-context read-only inspection through existing review routes, adaptive checks, human handoff, review lessons in `<ag-dir>/sys-review.md` (9.1.10) |
+| `deep-review.md` | `deep-review` command and automatic mid/high deep review: fresh-context read-only inspection through existing review routes, adaptive checks, human handoff (since 9.1.11 limited to blockers, decision-affecting uncertainty, sensitive actions and actual approval requests), review lessons in `<ag-dir>/sys-review.md` (9.1.10) |
 | `simple-check.md` | `simple-check` command (fresh independent read-only plan review → PASS/REVISE/BLOCKED) and the canonical `#check` that `planning.md` and `review.md` apply without adding stages (9.1.2) |
 | `batches.md` | `append-rounds` staging/advancement |
 | `eli5.md` | `eli5:` visual explanations: an interactive animated HTML lesson, preferably one self-contained file with no runtime network dependency; authoring pinned to GPT Astra/high or Claude Opus/high; payload never executes; loaded only for an unquoted `eli5:` request (9.1.4, reworked 9.1.6) |
@@ -53,7 +55,7 @@ flowchart LR
 | `setup.md` | first-time setup, AGENTS.md adoption in consumer projects, `#agf-command-setup` (generated `agf` shell function), `#detected-worker-defaults` (looper routes from detected `codex`/`claude`), `#empty-bootstrap` (one empty commit for repos without HEAD), `#standalone-initialization` (`agf init` contract and `.init-pending.owner` recovery) |
 | `upkeep.md`, `legacy-migration.md` | schema migration, Agentflow 8 migration, install replacement |
 | `invariants.md`, `project-rules.md` | system-invariant registry, shared project rules |
-| `ag.md` + `advisors/*.md` | optional advisor selection and prompts |
+| `ag.md` + `advisors/*.md` | optional advisor selection and prompts; `advisors/requirements.md` is the shared interview method for `go-hunt` and `spec-out` and owns `#interview-handoff` (9.1.11) |
 | `copilot.md`, `windows.md`, `browser-testing.md`, `brownfield.md` (renamed from `browfield.md` in 9.1.10), `product-docs.md`, `product-docs-authoring.md`, `writing.md`, `saving-mode.md` | situational guidance |
 
 - **Human docs** (`skills/agentflow/docs/`: `AG-GUIDE.md`/`AG-GUIDE.tw.md`, `CHEATSHEET.md`/`CHEATSHEET.tw.md`, `agv8-agv9-comparison.md`) and READMEs restate behavior for users. `references/looper.md#scope-and-maintenance` requires SKILL.md, configuration, review, both guides, cheatsheet and README to stay aligned when looper behavior changes.
@@ -66,12 +68,12 @@ All state is plain files written by the host, under the configured `ag-dir` (def
 | --- | --- | --- |
 | `<ag-dir>/ag.json` | settings, schema 13 (`switches.saving-mode` required) | `assets/.agentflow/ag.json` |
 | `<ag-dir>/<notebook-name>` | devlog: STATUS + append-only Ask/Reply rounds | `assets/.agentflow/devlog.md` |
-| `.<notebook>.owner` beside notebook | session claim JSON `{session, ask, claimed_at}` created with `wx` | — |
+| `.<notebook>.owner` beside notebook | session claim JSON `{session, ask, claimed_at}` created with `wx`; released at round close, including when the host yields for owner answers (9.1.11) | — |
 | `<ag-dir>/backlog.md`, `<ag-dir>/sys-invariants.md`, optional `<ag-dir>/rules.md` | shared records | assets |
 | `<ag-dir>/sys-review.md` (checkout root, or an established review-knowledge record) | review lessons: verified reusable failure mechanisms; created by the owner-facing host on the first qualified lesson, never by delegates or looper tasks; read during risk triage (9.1.10, `deep-review.md#review-lessons`) | — |
 | `<ag-dir>/artifacts/A-NNN/` | designs, trackers, reports for an Ask (main/unmanaged checkouts) | — |
 | `<ag-dir>/features/<name>/artifacts/A-NNN/` | same, for a managed feature (9.1.8; the "selected artifact root" in `session.md#round-evidence`); reaches main at the same relative path by merge, so notebook links stay valid | — |
-| `<ag-dir>/.tmp/A-NNN.md` | durable workflow evidence (despite the name) | — |
+| `<ag-dir>/.tmp/A-NNN.md` | durable workflow evidence (despite the name); written and read in ordinary recovery only with `save-evidence: on` or an explicit request (9.1.11, `session.md#evidence-storage`) | — |
 | `<notebook-stem>.archive.md` | archived rounds when notebook > 750 lines | — |
 | `<ag-dir>/features/<name>/<name>.devlog.md` | feature notebook inside `.wts/ft-<name>` | — |
 | `<ag-dir>/features/<name>/{merge,snapshot,intake}-state.json`, `.merge-*` workspace | feature CLI merge recovery state (written only by `agf merge-feature`) | — |
@@ -122,7 +124,7 @@ Separate from the looper; only the `agf` launcher and some helpers are shared.
 | `feature-merge.js` | `merge-feature`: snapshot/commit named dirty paths (`--include`), scoped candidate via temporary index + `merge-tree --write-tree`, `codex exec` conflict resolver, checks (10 min each), CAS `update-ref`, retirement records, optional cleanup, auto-commit/auto-push; resumable via `merge-state.json` phases | `merge` |
 | `feature-common.js` | context/identity (main = primary registered worktree, `.wts/ft-<name>`, `feature/<name>`), canonical config discovery without migration, UUID claims, Trash preflight/disposal, `retire` | `context`, `discover`, `claim`, `retire`, `preflightTrash`, `localLifecycleConfig` |
 
-`feature-common.js:discover` stops on zero/multiple candidate configs or unresolved entries (unreadable `ag.json`, symlinks) with a bounded diagnostic (9.1.4): checked directory, counts, at most three relative examples and next actions, in English or Traditional Chinese via its `diagnosticLocale` option (default `en`; only `init.js` passes a locale).
+`feature-common.js:discover` stops on zero/multiple candidate configs or unresolved entries (unreadable `ag.json`, symlinks) with a bounded diagnostic (9.1.4): checked directory, counts, at most three relative examples and next actions, in English or Traditional Chinese via its `diagnosticLocale` option (default `en`; only `init.js` passes a locale). It also rejects non-`on|off` values of the recognized Boolean switches, including optional `save-evidence` (9.1.11).
 | `feature-shell.js` | generated zsh/bash/PowerShell `agf` function; `AGF_CD_FILE` destination channel validation/writes | `binding`, `channel`, `destination` |
 
 Dependencies: `feature.js → {feature-common, feature-shell, looper-report}`; `feature-merge.js → {feature-common, feature-shell, looper-report, looper-agent:execute, looper-state:process_alive}`; `feature-common → looper-state` (and `looper-report` for locale support). Generated records support English and Traditional Chinese only; other locales stop before mutation. Platform: macOS uses Trash; Windows deletes the exact checkout/claims directly (best effort); Linux refuses record operations (`feature-common.js:preflightClaimDisposal`).
@@ -145,6 +147,7 @@ Dependencies: `init.js → {feature-common (discover, git with hooks disabled, n
 | `codex --version` / `claude --version` | initializer route detection only (no model call; skipped on Windows) | `init.js:detect` |
 | `copilot` CLI | looper CLI route | `looper-agent.js:launch_agent`, `references/copilot.md` |
 | GitHub releases `agfnow/agentflow` | release check by host every 2 days | `references/configuration.md#session-release-check` |
+| GitHub via `gh` (PR/review intake) | `spec-out` when GitHub is the selected collaboration hub; host-run, read-only by default, no push/PR/merge authority (9.1.11) | `references/spec-out-github.md` |
 | Browserbase `browse` / Stagehand | default browser-test tooling; CLI/code routes retained independent of any browser plugin/connector (9.1.4) | `references/browser-testing.md` |
 | OS Trash/Recycle Bin | reversible worktree removal (host); macOS `/usr/bin/trash` for looper cleanup and feature CLI | `references/features.md#retire-one-worktree`, `references/windows.md#reversible-cleanup`, `looper-cleanup.js`, `feature-common.js` |
 | Editor (`default-editor`, default `code`) | `agf new-feature --open` | `feature.js:create` |

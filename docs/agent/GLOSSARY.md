@@ -20,13 +20,15 @@ Paths are relative to `skills/agentflow/`.
 - **STATUS** — top section of the notebook: Project, Notebook, Checkout, Branch, Current, Proven, Next, Archived eras (+ Stream, Cleanup, Session for features). Labels are localized by `use-lang`.
 - **Ask / Reply / round** — `# → Ask / A-NNN` heading with captured owner input, then `# → Reply / A-NNN`, then the next Ask. A-NNN is the round ID.
 - **RUN / WIP** — optional milestone (`[RUN-NNN]`) and ten-minute checkpoint (`[WIP-NNN]`) entries; controlled by `omit-run`, `omit-wip`.
-- **Open questions** — localized `## Open questions` section appended before Reply in an open round to hold new owner questions and current-round resolutions; each question has a unique Q-NNN-n, a suggested-default paragraph and one `- ans:` field (`references/delivery.md#questions-during-work`, 9.1.10).
+- **Open questions** — localized `## Open questions` section appended before Reply in an open round to hold new owner questions and current-round resolutions; each question has a unique Q-NNN-n, a suggested-default paragraph and one `- ans:` field (`references/delivery.md#questions-during-work`, 9.1.10). Used while work continues; see Question closeout for pauses.
+- **Question closeout** — what the host does before yielding for owner answers: save pending scope/gate, question links and resume action, write Reply plus next Ask, settle workers and release its own claim. Closes the round, not the task; grants no completion or approval (`references/delivery.md#questions-during-work`, 9.1.11).
 - **Receipt** — chat line `→ Updated: A-NNN | <notebook>` plus working directory, shown instead of the answer when `inline-reply: off`.
-- **Claim / owner marker** — `.<notebook-basename>.owner` JSON `{session, ask, claimed_at}` created exclusively; coordinates sessions.
+- **Claim / owner marker** — `.<notebook-basename>.owner` JSON `{session, ask, claimed_at}` created exclusively; coordinates sessions. Held only while a round is actually unfinished; waiting for owner answers does not retain it (9.1.11).
 - **Capture** — copying each owner chat message into the active Ask with `+ ` paragraph prefixes.
 - **Off-record** — exchange marked with `nolog:`/`noop:`/`off:`/`skip:`; executed but not recorded.
 - **Idle shortcut** — bare activation with no unfinished work: ask for next request without claiming.
-- **Round evidence** — workflow proof stored in `<ag-dir>/.tmp/A-NNN.md` or the artifact root's `A-NNN/`, linked from Current, kept out of the devlog body. Since 9.1.4 new evidence uses the compact selective fields Scope → Checks → Findings → Resume, omitting empty fields and routine output (`references/session.md#round-evidence`).
+- **Round evidence** — workflow proof stored in `<ag-dir>/.tmp/A-NNN.md` or the artifact root's `A-NNN/`, linked from Current, kept out of the devlog body. Since 9.1.4 new evidence uses the compact selective fields Scope → Checks → Findings → Resume, omitting empty fields and routine output (`references/session.md#round-evidence`). Since 9.1.11 written only when evidence storage is on or explicitly requested.
+- **Evidence storage / `save-evidence`** — optional `ag.json` switch (`on|off`, default `off`, schema 13 unchanged) deciding whether separate round evidence is created and read during ordinary recovery. Off changes persistence only: checks, review, gates and dedicated operational records (looper queue/attempts, feature lifecycle retry records, migration identities) remain (`references/session.md#evidence-storage`, 9.1.11).
 - **Artifact root (selected)** — where round artifacts, prepared looper runs and ignored-proof fallbacks go: `<ag-dir>/features/<name>/artifacts/` in a managed feature (9.1.8), otherwise `<ag-dir>/artifacts/` (`references/session.md#round-evidence`).
 - **Tracker** — task-state record (`## Tasks` with `T-n`, `## Recovery`); statuses TODO/DOING/BLOCKED/DONE.
 - **Design** — contract record with `## Invariants` (INV-n), `## Acceptance criteria` (AC-n), `## Validation`, `## Minimality check`.
@@ -45,7 +47,12 @@ Paths are relative to `skills/agentflow/`.
 - **godev / gdd / devlog** — activate/resume.
 - **fast-lane** — one task executed directly by the host, skipping advisors, delegation, separate review, new design/tracker, routine RUN/WIP.
 - **skip-review** — one task with host review only.
-- **grill-me** — requirements interview.
+- **go-hunt** — `go-hunt [topic]`: requirements interview through the host using `references/advisors/requirements.md`; replaced `grill-me` in 9.1.11 (the old word no longer triggers).
+- **Interview handoff** — where `go-hunt` findings persist: one evolving DRAFT `design.md` for feature discovery, or an existing requirements contract / `probe-report.md` for requirements-only discovery (`references/advisors/requirements.md#interview-handoff`, 9.1.11).
+- **spec-out** — `spec-out [request]`: explicit staged specification command that develops one `design.md` (bundled template) and linked `tracker.md` through interview, Tech/Art investigation and optional prototype; adds no implementation or publication authority (`references/spec-out.md`, 9.1.11).
+- **Readiness (specification)** — judgment of an existing design against accepted mandatory scope at final delivery/handoff; material gaps keep the scope DRAFT. Neither approval nor execution authority (`references/planning.md#specification-readiness-and-handoff`, 9.1.11).
+- **DECIDED / OBSERVED / ASSUMPTION / PROPOSED / OPEN** — status labels separating statements in a `spec-out` design; OPEN choices link their devlog question.
+- **UX prototype** — disposable, isolated interaction model on synthetic data with a matching UX report and optional review tour; lo-fi or hi-fi as confirmed by the owner (`references/ux-prototype.md`, 9.1.11).
 - **simple-check** — `simple-check [target]`: fresh independent read-only review of an existing plan returning PASS/REVISE/BLOCKED; no host fallback or implementation authority (`references/simple-check.md`, 9.1.2).
 - **eli5:** — `eli5: <topic-or-command>`: an interactive animated HTML lesson, preferably one self-contained file; everything after the marker is inert explanation data (`references/eli5.md`, 9.1.4; reworked 9.1.6).
 - **Check (canonical)** — the adequacy → scope → subtraction → trace work → execution cost → total burden → proof checklist (trace/cost steps added in 9.1.4) in `references/simple-check.md#check`, applied by planning and review at their existing checkpoints without adding stages.
@@ -54,12 +61,12 @@ Paths are relative to `skills/agentflow/`.
 - **brownfield** — optional eight-gate brownfield procedure (`references/brownfield.md`); spelled `browfield` (`browfield.md`) before 9.1.10, and the old spelling no longer triggers.
 - **deep-review** — `deep-review [target]`: forces deep review at any risk; also automatic for mid/high (`references/deep-review.md`, 9.1.10).
 - **Risk triage / risk level** — `low | mid | high` rating of a reviewed candidate by behavior, blast radius, reversibility and uncertainty, reported separately from defects/verdict (`references/review.md#risk-triage`, 9.1.10).
-- **Human handoff** — concise owner-facing summary from deep review naming risk, decisions, ranked locations for humans to confirm and gaps; not an approval (`references/deep-review.md#human-handoff`).
+- **Human handoff** — owner-facing output of deep review; since 9.1.11 only blockers, decision-affecting uncertainty, sensitive actions needing human attention and actual approval requests, with routine risk/route accounting kept in enabled evidence; not an approval (`references/deep-review.md#human-handoff`).
 - **append-rounds / append-tasks** — stage a later batch.
 - **show-diff** — present a verified diff with reasons.
 - **plan-order / review-order** — route selection for planning and result review: `3ways|external|native|host` and `external|native|host`.
 - **Planner diversity** — preference that the reviewer comes from a different model family than the planner.
-- **gate-design / gate-tracker** — approval pauses before implementation / before final delivery.
+- **gate-design / gate-tracker** — approval pauses before implementation / before the task-completion Reply and delivery; a gate-tracker pause closes the round via question closeout (9.1.11).
 - **pipeline-roles / model-family / tier** — role → tier (`best|better|basic|cheap`); catalog → `model/effort` string, split at final `/`.
 
 ## Feature worktrees

@@ -1,6 +1,6 @@
 # Runtime flows
 
-Flows 1–4 are executed by the host following prompts (no code, no automated tests). Flows 5–11 are implemented in `skills/agentflow/scripts/` and covered by `looper*.test.js` / `feature*.test.js` / `init.test.js`. Paths are relative to `skills/agentflow/`.
+Flows 1–4b are executed by the host following prompts (no code, no automated tests). Flows 5–11 are implemented in `skills/agentflow/scripts/` and covered by `looper*.test.js` / `feature*.test.js` / `init.test.js`. Paths are relative to `skills/agentflow/`.
 
 ---
 
@@ -25,12 +25,14 @@ Trigger: actual task or Q&A on-record.
 ```
 resolve notebook path
 → create .<notebook>.owner with wx  {session, ask, claimed_at}     session.md#notebook-ownership
-→ read active Ask, STATUS Current, tracker Recovery, evidence       session.md#activate-and-recover step 3
+→ apply save-evidence (off: skip separate evidence links)          session.md#evidence-storage
+→ read active Ask, STATUS Current, tracker Recovery, permitted evidence   session.md#activate-and-recover step 3
 → capture unrecorded owner messages with "+ " prefix                step 4
 → read project rules, sys-invariants                                step 5
 → planning criteria / gates                                         planning.md
 → execute (work.md), optional delegation/review (review.md)
    new owner questions → devlog "## Open questions" before Reply   delivery.md#questions-during-work
+   yielding for answers → question closeout (below)
 → result review → risk triage low|mid|high                         review.md#risk-triage
    mid/high (or explicit deep-review) → fresh-context deep inspection → human handoff   deep-review.md
 → render Reply + next Ask + STATUS in one write                     delivery.md#notebook-and-delivery
@@ -39,7 +41,7 @@ resolve notebook path
 → chat: "→ Updated: A-NNN | <notebook>" receipt (inline-reply off)
 ```
 
-Awaiting an answer keeps the open-round claim; the answer is read from its single `- ans:` field plus later resolutions before resuming the same gate. Failure paths: foreign/malformed claim blocks immediately; late conflict retries 60/120/180 s; blocked delivery saves recovery in Current/tracker and still releases the claim when processes are settled.
+Question closeout (9.1.11; before that, awaiting an answer kept the round and claim open): finish independent authorized work → save pending scope/gate, question links and resume action in Current/tracker → Reply + next Ask + STATUS → settle workers → release own claim. On the next answer or activation: claim the receiving Ask → recover pending questions through Current/tracker → read each original `- ans:` field plus later resolutions → record the resolution in this round → resume only answered authorized work; if still waiting, close and release again. A `gate-tracker` approval pause uses the same path, with task/delivery still awaiting approval (`planning.md#planning-modes-and-gates`). Empty fields, defaults, silence and bare activation approve nothing. Failure paths: foreign/malformed claim blocks immediately; late conflict retries 60/120/180 s; blocked delivery saves recovery in Current/tracker and still releases the claim when processes are settled.
 
 ## 3. Feature worktree lifecycle
 
@@ -56,6 +58,24 @@ Trigger: `new-feature <name>`, `merge-feature <name> [and cleanup]`, `drop-featu
 Trigger: message starting with `append-rounds <work>` / `append-tasks <work>`. Source: `references/batches.md`.
 
 Stage in `Pending batches` (Current-linked) → finish active round incl. delivery → re-verify identity/routing → capture oldest entry into the empty trailing Ask → execute (prefer fresh native worker) → Reply → next.
+
+## 4b. `spec-out` staged specification (9.1.11)
+
+Trigger: explicit unquoted `spec-out [request]`. Source: `references/spec-out.md`. Prompt-defined; runs inside the owned round of flow 2 and may span several rounds.
+
+```
+recover target contract, interview handoff, answers, tracker, source/prototype revisions   spec-out.md#start-or-resume
+→ owner interview (requirements method; a valid on-record go-hunt interview counts)       advisors/requirements.md
+   questions → devlog; yielding for answers → question closeout (flow 2)
+→ intake + Tech / Art investigation at identified revisions                                spec-out.md#intake-and-investigation
+→ optional prototype, only with owner-confirmed need/fidelity/depth                        ux-prototype.md
+→ write/enrich the same DRAFT design.md from the template; map requirements → AC/INV       spec-out.md#write-and-reconcile
+   GitHub selected as hub → gh intake, semantic integration, role sign-off                 spec-out-github.md
+→ readiness check + canonical Check                                                        planning.md#specification-readiness-and-handoff
+→ final delivery: one linked tracker.md (unstarted implementation stays TODO)
+```
+
+Each invocation states the next scoped outcome and resumes the same contract; stage-limited requests stop at their authorized outcome with readiness gaps explicit. No implementation, prototype, publication or messaging authority is added at any step.
 
 ---
 
@@ -75,7 +95,7 @@ Trigger: host (or owner in a terminal) runs `agf looper run <run-root> [--cleanu
 0. If `queue.cleanup` exists, `looper-cleanup.js:assert_completed` + matching completed cleanup → return 0 without settings, claims or workers.
 1. `load(root)` → `validate`: rejects legacy fields, requires schema 2, physical Git-root `repo`, valid `target_branch`, full `base_commit`, authorization booleans, registered checks, `group-NNN.md` files with exactly one `## <task>` heading per task, safe `allowed_paths` (not `.git`/`.wts`/`.aglite-records`), `depends_on` only to earlier groups, no unregistered group files.
 2. `request_text`: request file must be regular, UTF-8, sha256 = `request_sha256`.
-3. `read_settings(q.repo)`: walks repo for `ag.json` (skips `.git`, `node_modules`, `.aglite-records`, nested checkouts), exactly one canonical config, schema = bundled template `current_schema` (13) or absent, `switches.saving-mode` exactly `on|off`, `looper-limits`. Returns sha256 digest.
+3. `read_settings(q.repo)`: walks repo for `ag.json` (skips `.git`, `node_modules`, `.aglite-records`, nested checkouts), exactly one canonical config, schema = bundled template `current_schema` (13) or absent, `switches.saving-mode` exactly `on|off`, optional `switches.save-evidence` absent or `on|off` (9.1.11), `looper-limits`. Returns sha256 digest.
 4. If any group needs a new task attempt, `select(settings, 'task')` validates routes before any claim/worktree.
 5. Claims: `.queue.owner` and `<git-common-dir>/aglite-target-<sha>.owner` via `acquire` (takeover only if old claim process and recorded children are proved stopped).
 6. Reconcile: landed-but-unrecorded integration (`phase: landing` and `looper-integration.js:landing_applied` — result is an ancestor of the target, otherwise a saved reflog-coverage digest must prove it was never applied) → `finished_merge`; `adopt_target(q, save, 'startup')` records compatible forward movement, failure → `lane_error`; re-prove done tasks/groups; resume pending ordinary-review handoffs; check notebooks of in-progress groups.
@@ -202,7 +222,8 @@ agf.js:main            argv must be exactly `init` or `init --lang <tag>`; else 
 → empty bootstrap commit if no HEAD
 → write scaffolds (wx) + AGENTS adoption (temp file + rename, mode preserved) → complete()
 → auto-commit on: git add + commit --only "chore: initialize agentflow" of generated paths; verify parents/paths/index
-→ rename marker to .git/agf-init-completed-<uuid>.json; print invariant notice + "write the next request in A-002"
+→ rename marker to .git/agf-init-completed-<uuid>.json; print "Initialized Agentflow: <notebook>" + next action
+  (add request under Ask / A-002, then run godev); notices stay in the saved A-001 Reply (9.1.11)
 ```
 
 Any error after the reservation keeps `.init-pending.owner` and appends a host-reconciliation hint (exit 1); the next host activation must reconcile it before setup/idle/claim (flow 1 step 5). After success the host rereads `use-lang`, claims A-002 and finishes binding, release-check and delivery duties.

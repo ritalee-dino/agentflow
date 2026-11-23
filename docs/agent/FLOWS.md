@@ -33,7 +33,9 @@ resolve notebook path
 → execute (work.md), optional delegation/review (review.md)
    new owner questions → devlog "## Open questions" before Reply   delivery.md#questions-during-work
    yielding for answers → question closeout (below)
+→ checks/repairs chosen and bounded by adaptive verification      verification.md (9.1.12)
 → result review → risk triage low|mid|high                         review.md#risk-triage
+   implementation-result review answers state level + short reason (9.1.12)
    mid/high (or explicit deep-review) → fresh-context deep inspection → human handoff   deep-review.md
 → render Reply + next Ask + STATUS in one write                     delivery.md#notebook-and-delivery
 → task commit → owner-edit commit → push (if switches on)          delivery.md#git-delivery
@@ -95,7 +97,7 @@ Trigger: host (or owner in a terminal) runs `agf looper run <run-root> [--cleanu
 0. If `queue.cleanup` exists, `looper-cleanup.js:assert_completed` + matching completed cleanup → return 0 without settings, claims or workers.
 1. `load(root)` → `validate`: rejects legacy fields, requires schema 2, physical Git-root `repo`, valid `target_branch`, full `base_commit`, authorization booleans, registered checks, `group-NNN.md` files with exactly one `## <task>` heading per task, safe `allowed_paths` (not `.git`/`.wts`/`.aglite-records`), `depends_on` only to earlier groups, no unregistered group files.
 2. `request_text`: request file must be regular, UTF-8, sha256 = `request_sha256`.
-3. `read_settings(q.repo)`: walks repo for `ag.json` (skips `.git`, `node_modules`, `.aglite-records`, nested checkouts), exactly one canonical config, schema = bundled template `current_schema` (13) or absent, `switches.saving-mode` exactly `on|off`, optional `switches.save-evidence` absent or `on|off` (9.1.11), `looper-limits`. Returns sha256 digest.
+3. `read_settings(q.repo)`: walks repo for `ag.json` (skips `.git`, `node_modules`, `.aglite-records`, nested checkouts), exactly one canonical config, schema = bundled template `current_schema` (14 since 9.1.12) or absent, `switches.saving-mode` and `switches.save-evidence` (required since 9.1.12; optional in 9.1.11) exactly `on|off` — a missing key throws "missing: migrate via the owner-facing host", `looper-limits`. Returns sha256 digest.
 4. If any group needs a new task attempt, `select(settings, 'task')` validates routes before any claim/worktree.
 5. Claims: `.queue.owner` and `<git-common-dir>/aglite-target-<sha>.owner` via `acquire` (takeover only if old claim process and recorded children are proved stopped).
 6. Reconcile: landed-but-unrecorded integration (`phase: landing` and `looper-integration.js:landing_applied` — result is an ancestor of the target, otherwise a saved reflog-coverage digest must prove it was never applied) → `finished_merge`; `adopt_target(q, save, 'startup')` records compatible forward movement, failure → `lane_error`; re-prove done tasks/groups; resume pending ordinary-review handoffs; check notebooks of in-progress groups.
@@ -129,7 +131,7 @@ looper-integration.js:prepare_group   create .wts/aglite-<run>-<group> on branch
 → task.state = done
 ```
 
-Prompt content: `SKILL.md` path, original request, session overrides (`ag-dir .aglite-records`, `auto-commit off`, `auto-push off`), `project_context` (rules, invariants, writing, AGENTS.md, contracts at `base_commit`), changed contract/AGENTS.md text at the workspace base (`contract_changes`, as data), allowed paths, task Markdown, declared checks, prior answers. Risk triage and deep review inside the task are prompt-defined: deep inspection runs in the relayed fresh reviewer, and risk/handoff/lesson candidates return in existing result text (9.1.10, `review.md#looper-task-review`).
+Prompt content: `SKILL.md` path, original request, session overrides (`ag-dir .aglite-records`, `auto-commit off`, `auto-push off`), `project_context` (rules, invariants, writing, AGENTS.md, contracts at `base_commit`), changed contract/AGENTS.md text at the workspace base (`contract_changes`, as data), allowed paths, task Markdown, declared checks, prior answers, and (9.1.12) the rule that user-facing text follows `use-lang` while machine-facing instructions/worker prompts stay English. Risk triage and deep review inside the task are prompt-defined: deep inspection runs in the relayed fresh reviewer, and risk/handoff/lesson candidates return in existing result text (9.1.10, `review.md#looper-task-review`).
 
 ### 6d. Integration (`integrate`)
 
@@ -147,6 +149,8 @@ adopt_target          'integration start'; record compatible forward target adva
           (race-refused fast-forward → adopt + carry forward, not charged to max-repairs)
 → finished_merge: group done, expected_head = result
 ```
+
+Repair, review and acceptance prompts built by `invoke` end with the verbatim text of `references/verification.md` (9.1.12; adaptive checks and repair bounds without loading `SKILL.md`); the repair loop itself is still bounded by `max-repairs` in code.
 
 Clean merges with passing checks skip review/acceptance unless contracts changed (`attempt.phase = attempt.repaired || <contract_changes with unaccepted signature> ? 'review' : 'verified'`). Branch change, rewrite or foreign Git operation during adoption → `lane_error`.
 
@@ -220,7 +224,7 @@ agf.js:main            argv must be exactly `init` or `init --lang <tag>`; else 
 → AGENTS checks, detect() routes, preflight (recorded history, Git identity, git init if non-Git, check-ignore)
 → mkdir .agentflow + write .init-pending.owner (wx)        reservation = interruption marker
 → empty bootstrap commit if no HEAD
-→ write scaffolds (wx) + AGENTS adoption (temp file + rename, mode preserved) → complete()
+→ write scaffolds (wx) + AGENTS adoption (English directives regardless of locale since 9.1.12; temp file + rename, mode preserved) → complete()
 → auto-commit on: git add + commit --only "chore: initialize agentflow" of generated paths; verify parents/paths/index
 → rename marker to .git/agf-init-completed-<uuid>.json; print "Initialized Agentflow: <notebook>" + next action
   (add request under Ask / A-002, then run godev); notices stay in the saved A-001 Reply (9.1.11)

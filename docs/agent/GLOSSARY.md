@@ -15,7 +15,7 @@ Paths are relative to `skills/agentflow/`.
 ## Records
 
 - **ag-dir** — configured record directory, default `.agentflow`. `.agentflow/` in prompts means the configured ag-dir.
-- **ag.json** — project configuration at `<checkout>/<ag-dir>/ag.json`, schema 13 (target = bundled template's `schema-version`); `switches.saving-mode` required.
+- **ag.json** — project configuration at `<checkout>/<ag-dir>/ag.json`, schema 14 since 9.1.12 (target = bundled template's `schema-version`); `switches.saving-mode` and `switches.save-evidence` required.
 - **Notebook / devlog** — the Markdown log at `<ag-dir>/<notebook-name>` (default `<dirname>.devlog.md`). Starts with STATUS, then rounds.
 - **STATUS** — top section of the notebook: Project, Notebook, Checkout, Branch, Current, Proven, Next, Archived eras (+ Stream, Cleanup, Session for features). Labels are localized by `use-lang`.
 - **Ask / Reply / round** — `# → Ask / A-NNN` heading with captured owner input, then `# → Reply / A-NNN`, then the next Ask. A-NNN is the round ID.
@@ -28,7 +28,7 @@ Paths are relative to `skills/agentflow/`.
 - **Off-record** — exchange marked with `nolog:`/`noop:`/`off:`/`skip:`; executed but not recorded.
 - **Idle shortcut** — bare activation with no unfinished work: ask for next request without claiming.
 - **Round evidence** — workflow proof stored in `<ag-dir>/.tmp/A-NNN.md` or the artifact root's `A-NNN/`, linked from Current, kept out of the devlog body. Since 9.1.4 new evidence uses the compact selective fields Scope → Checks → Findings → Resume, omitting empty fields and routine output (`references/session.md#round-evidence`). Since 9.1.11 written only when evidence storage is on or explicitly requested.
-- **Evidence storage / `save-evidence`** — optional `ag.json` switch (`on|off`, default `off`, schema 13 unchanged) deciding whether separate round evidence is created and read during ordinary recovery. Off changes persistence only: checks, review, gates and dedicated operational records (looper queue/attempts, feature lifecycle retry records, migration identities) remain (`references/session.md#evidence-storage`, 9.1.11).
+- **Evidence storage / `save-evidence`** — `ag.json` switch (`on|off`, default `off`; optional at schema 13 in 9.1.11, required at schema 14 since 9.1.12, migration adds `off` when absent) deciding whether separate round evidence is created and read during ordinary recovery. Off changes persistence only: checks, review, gates and dedicated operational records (looper queue/attempts, feature lifecycle retry records, migration identities) remain (`references/session.md#evidence-storage`, 9.1.11).
 - **Artifact root (selected)** — where round artifacts, prepared looper runs and ignored-proof fallbacks go: `<ag-dir>/features/<name>/artifacts/` in a managed feature (9.1.8), otherwise `<ag-dir>/artifacts/` (`references/session.md#round-evidence`).
 - **Tracker** — task-state record (`## Tasks` with `T-n`, `## Recovery`); statuses TODO/DOING/BLOCKED/DONE.
 - **Design** — contract record with `## Invariants` (INV-n), `## Acceptance criteria` (AC-n), `## Validation`, `## Minimality check`.
@@ -60,7 +60,9 @@ Paths are relative to `skills/agentflow/`.
 - **3ways** — Claude and Codex draft blind, exchange and debate, then Codex writes the final synthesis with dispositions; the host verifies and relays but does not rewrite it (`references/review.md#3ways-compare-before-implementation`, 9.1.0).
 - **brownfield** — optional eight-gate brownfield procedure (`references/brownfield.md`); spelled `browfield` (`browfield.md`) before 9.1.10, and the old spelling no longer triggers.
 - **deep-review** — `deep-review [target]`: forces deep review at any risk; also automatic for mid/high (`references/deep-review.md`, 9.1.10).
-- **Risk triage / risk level** — `low | mid | high` rating of a reviewed candidate by behavior, blast radius, reversibility and uncertainty, reported separately from defects/verdict (`references/review.md#risk-triage`, 9.1.10).
+- **Risk triage / risk level** — `low | mid | high` rating of a reviewed candidate by behavior, blast radius, reversibility and uncertainty, reported separately from defects/verdict (`references/review.md#risk-triage`, 9.1.10); since 9.1.12 every implementation-result review answer states the level and a short reason.
+- **Adaptive verification** — shared failure-driven method for choosing the cheapest discriminating check per named plausible violation, scoping state/formal-method claims, checking model-to-implementation correspondence and bounding repairs; adds no stage (`references/verification.md`, 9.1.12).
+- **Machine-facing vs user-facing text** — since 9.1.12 agent directives, worker assignments and looper prompts are written in English; `use-lang` governs only user-facing text (`references/configuration.md#discovery-and-validation`, `references/writing.md`).
 - **Human handoff** — owner-facing output of deep review; since 9.1.11 only blockers, decision-affecting uncertainty, sensitive actions needing human attention and actual approval requests, with routine risk/route accounting kept in enabled evidence; not an approval (`references/deep-review.md#human-handoff`).
 - **append-rounds / append-tasks** — stage a later batch.
 - **show-diff** — present a verified diff with reasons.
@@ -102,7 +104,7 @@ Paths are relative to `skills/agentflow/`.
 - **Explicit cleanup** — `agf looper cleanup` / `run --cleanup`: moves a completed run's worktrees and run-root extras to macOS Trash, keeping queue/request/plans and branches (`scripts/looper-cleanup.js`, `queue.cleanup`).
 - **Run report** — derived output: `results.md` in the run-root and `evidence/run-<time>-<uuid>.txt` per invocation (`scripts/looper-report.js:save_report`); never resume input.
 - **failure.json** — structured launch/execution/result failure evidence in `attempts/<uuid>/`.
-- **Repair** — fix attempt in the integration worktree after conflicts or failed checks; bounded by `max-repairs`.
+- **Repair** — fix attempt in the integration worktree after conflicts or failed checks; bounded by `max-repairs`. Outside the looper, prompt-defined repairs honor existing budgets, else stop after two unsuccessful repairs of the same failure (`references/verification.md#repair-and-stopping`, 9.1.12).
 - **Handoff (native)** — `attempts/<uuid>/assignment.md` read by host; result returned in `inbox/<uuid>.json` with `writer_stopped: true`.
 - **Question** — blocker saved in `queue.json` `questions`; answered through `inbox/answers.json`.
 - **commit_intent** — saved before a task commit so a crash can finish or verify it.

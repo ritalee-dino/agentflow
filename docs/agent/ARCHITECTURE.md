@@ -39,14 +39,15 @@ flowchart LR
 | Reference | Owns |
 | --- | --- |
 | `configuration.md` | ag.json discovery/validation, switches, release-check scheduling |
-| `session.md` | claim/ownership, recovery, owner-input capture, project rules/backlog, `#evidence-storage` (optional `save-evidence` switch decides whether separate round evidence is written or read; 9.1.11), round evidence |
+| `session.md` | claim/ownership, recovery, owner-input capture, project rules/backlog, `#evidence-storage` (`save-evidence` switch decides whether separate round evidence is written or read; 9.1.11, required since schema 14 in 9.1.12), round evidence |
 | `delivery.md` | STATUS/Ask/Reply rendering, receipt, archive, `#questions-during-work` (new owner questions go in the devlog, mid-round in an `## Open questions` section, 9.1.10; yielding for answers closes the round and releases the settled claim, 9.1.11), Git delivery, rename |
 | `work.md` | task modes, execution, RUN/WIP, diffs; test-first (red → smallest green → refactor) for executable behavior changes (9.1.9) |
 | `planning.md` | design/tracker creation, `#specification-readiness-and-handoff` (DRAFT vs ready scope for existing designs; 9.1.11), plan-mode, gates |
 | `spec-out.md`, `spec-out-template.md`, `spec-out-github.md` | `spec-out` command: interview → Tech/Art investigation → optional prototype → one `design.md` (bundled template) plus linked `tracker.md`; GitHub collaboration rules load only when GitHub is the selected hub; grants no implementation or publication authority (9.1.11) |
 | `ux-prototype.md` | sole method for authorized UX prototype planning/creation/revision, inside or outside `spec-out`: synthetic-data isolation, fidelity decisions, UX report, review tour, human acceptance limits (9.1.11) |
-| `review.md` | worker settings, delegation, planning routes, result review, `#risk-triage` (`low`/`mid`/`high` per reviewed candidate; mid/high routes to deep review; 9.1.10), `3ways` |
-| `deep-review.md` | `deep-review` command and automatic mid/high deep review: fresh-context read-only inspection through existing review routes, adaptive checks, human handoff (since 9.1.11 limited to blockers, decision-affecting uncertainty, sensitive actions and actual approval requests), review lessons in `<ag-dir>/sys-review.md` (9.1.10) |
+| `review.md` | worker settings, delegation (native/external worker assignments written in English, 9.1.12), planning routes, result review (Intent and decisions / Verification strength checklist items, 9.1.12), `#risk-triage` (`low`/`mid`/`high` per reviewed candidate; mid/high routes to deep review; 9.1.10; since 9.1.12 every implementation-result review answer states the level and a short reason), `3ways` |
+| `deep-review.md` | `deep-review` command and automatic mid/high deep review: fresh-context read-only inspection through existing review routes, checks selected via `verification.md` (9.1.12), human handoff (since 9.1.11 limited to blockers, decision-affecting uncertainty, sensitive actions and actual approval requests; 9.1.12 adds the risk statement), review lessons in `<ag-dir>/sys-review.md` (9.1.10) |
+| `verification.md` | adaptive verification (9.1.12): pick the cheapest check that distinguishes a named plausible violation from correct behavior; alternatives by failure mechanism (examples, properties, differential, fuzzing, targeted mutation, integration/faults); state/ordering and formal methods with scoped claims and separate implementation correspondence; `#repair-and-stopping` (existing budgets such as looper `max-repairs`, otherwise stop after two unsuccessful repairs of the same failure); acceptance claims. Adds no stage, worker, gate or authority; loaded before consequential validation selection, implementation checks/repairs or result review |
 | `simple-check.md` | `simple-check` command (fresh independent read-only plan review → PASS/REVISE/BLOCKED) and the canonical `#check` that `planning.md` and `review.md` apply without adding stages (9.1.2) |
 | `batches.md` | `append-rounds` staging/advancement |
 | `eli5.md` | `eli5:` visual explanations: an interactive animated HTML lesson, preferably one self-contained file with no runtime network dependency; authoring pinned to GPT Astra/high or Claude Opus/high; payload never executes; loaded only for an unquoted `eli5:` request (9.1.4, reworked 9.1.6) |
@@ -56,7 +57,7 @@ flowchart LR
 | `upkeep.md`, `legacy-migration.md` | schema migration, Agentflow 8 migration, install replacement |
 | `invariants.md`, `project-rules.md` | system-invariant registry, shared project rules |
 | `ag.md` + `advisors/*.md` | optional advisor selection and prompts; `advisors/requirements.md` is the shared interview method for `go-hunt` and `spec-out` and owns `#interview-handoff` (9.1.11) |
-| `copilot.md`, `windows.md`, `browser-testing.md`, `brownfield.md` (renamed from `browfield.md` in 9.1.10), `product-docs.md`, `product-docs-authoring.md`, `writing.md`, `saving-mode.md` | situational guidance |
+| `copilot.md`, `windows.md`, `browser-testing.md`, `brownfield.md` (renamed from `browfield.md` in 9.1.10), `product-docs.md`, `product-docs-authoring.md`, `writing.md`, `saving-mode.md` | situational guidance; since 9.1.12 `writing.md`/`configuration.md` split language rules: configured locale for user-facing text, English for machine-facing instructions and worker prompts |
 
 - **Human docs** (`skills/agentflow/docs/`: `AG-GUIDE.md`/`AG-GUIDE.tw.md`, `CHEATSHEET.md`/`CHEATSHEET.tw.md`, `agv8-agv9-comparison.md`) and READMEs restate behavior for users. `references/looper.md#scope-and-maintenance` requires SKILL.md, configuration, review, both guides, cheatsheet and README to stay aligned when looper behavior changes.
 
@@ -66,7 +67,7 @@ All state is plain files written by the host, under the configured `ag-dir` (def
 
 | File | Purpose | Template |
 | --- | --- | --- |
-| `<ag-dir>/ag.json` | settings, schema 13 (`switches.saving-mode` required) | `assets/.agentflow/ag.json` |
+| `<ag-dir>/ag.json` | settings, schema 14 (`switches.saving-mode` and, since 9.1.12, `switches.save-evidence` required) | `assets/.agentflow/ag.json` |
 | `<ag-dir>/<notebook-name>` | devlog: STATUS + append-only Ask/Reply rounds | `assets/.agentflow/devlog.md` |
 | `.<notebook>.owner` beside notebook | session claim JSON `{session, ask, claimed_at}` created with `wx`; released at round close, including when the host yields for owner answers (9.1.11) | — |
 | `<ag-dir>/backlog.md`, `<ag-dir>/sys-invariants.md`, optional `<ag-dir>/rules.md` | shared records | assets |
@@ -112,7 +113,7 @@ Modules in `skills/agentflow/scripts/` (dependency direction: `agf.js → {loope
 - One serial integration lane (FIFO `ready` list, ties broken by group ID); at most one repair may overlap task work.
 - `depends_on` groups wait (no slot) until predecessors reach `state: done` (checked integration).
 - Target movement (9.1.0): `looper-integration.js:adopt_target` records a same-branch forward advance in `target_adoptions` and moves `expected_head` (at startup, workspace dispatch, integration start/observation, before landing, on races). Branch change, history rewrite, a foreign Git operation, or a completed integration missing from the target throws → `lane_error`. A checked result whose base was superseded is carried into a new merge attempt on the latest head with checks rerun.
-- Ordinary review relay: a CLI task writes a review request into its records; the coordinator launches a fresh read-only sibling session via `invoke('review')` (role `review` maps to the `acceptance` route in `select`), binds request/source hashes (`ordinary_review_proof`) and settles it before the task slot and claims release. Since 9.1.10 the task host folds deep inspection into this same fresh reviewer and carries risk, handoff and lesson candidates in existing result/evidence text; this is prompt-defined (`review.md#looper-task-review`) with no new transport fields or coordinator change.
+- Ordinary review relay: a CLI task writes a review request into its records; the coordinator launches a fresh read-only sibling session via `invoke('review')` (role `review` maps to the `acceptance` route in `select`), binds request/source hashes (`ordinary_review_proof`) and settles it before the task slot and claims release. Since 9.1.10 the task host folds deep inspection into this same fresh reviewer and carries risk, handoff and lesson candidates in existing result/evidence text; this is prompt-defined (`review.md#looper-task-review`) with no new transport fields or coordinator change. Since 9.1.12 the coordinator's `invoke` appends the full text of `references/verification.md` to every `repair`, `review` and `acceptance` prompt (task prompts excluded), so those workers get the check/repair policy without loading `SKILL.md`.
 
 ## Feature CLI runtime
 
@@ -123,9 +124,9 @@ Separate from the looper; only the `agf` launcher and some helpers are shared.
 | `feature.js` | `new-feature` (worktree add, notebook scaffold/resume, inherited config copy, optional `--open` editor) and `drop-feature` | `create`, `drop`, `scaffold`, `resumePreparation` |
 | `feature-merge.js` | `merge-feature`: snapshot/commit named dirty paths (`--include`), scoped candidate via temporary index + `merge-tree --write-tree`, `codex exec` conflict resolver, checks (10 min each), CAS `update-ref`, retirement records, optional cleanup, auto-commit/auto-push; resumable via `merge-state.json` phases | `merge` |
 | `feature-common.js` | context/identity (main = primary registered worktree, `.wts/ft-<name>`, `feature/<name>`), canonical config discovery without migration, UUID claims, Trash preflight/disposal, `retire` | `context`, `discover`, `claim`, `retire`, `preflightTrash`, `localLifecycleConfig` |
-
-`feature-common.js:discover` stops on zero/multiple candidate configs or unresolved entries (unreadable `ag.json`, symlinks) with a bounded diagnostic (9.1.4): checked directory, counts, at most three relative examples and next actions, in English or Traditional Chinese via its `diagnosticLocale` option (default `en`; only `init.js` passes a locale). It also rejects non-`on|off` values of the recognized Boolean switches, including optional `save-evidence` (9.1.11).
 | `feature-shell.js` | generated zsh/bash/PowerShell `agf` function; `AGF_CD_FILE` destination channel validation/writes | `binding`, `channel`, `destination` |
+
+`feature-common.js:discover` stops on zero/multiple candidate configs or unresolved entries (unreadable `ag.json`, symlinks) with a bounded diagnostic (9.1.4): checked directory, counts, at most three relative examples and next actions, in English or Traditional Chinese via its `diagnosticLocale` option (default `en`; only `init.js` passes a locale). It also rejects non-`on|off` values of the recognized Boolean switches (9.1.11), and since 9.1.12 (schema 14) treats a missing `save-evidence`, like a missing `saving-mode`, as "Configuration migration requires host continuation".
 
 Dependencies: `feature.js → {feature-common, feature-shell, looper-report}`; `feature-merge.js → {feature-common, feature-shell, looper-report, looper-agent:execute, looper-state:process_alive}`; `feature-common → looper-state` (and `looper-report` for locale support). Generated records support English and Traditional Chinese only; other locales stop before mutation. Platform: macOS uses Trash; Windows deletes the exact checkout/claims directly (best effort); Linux refuses record operations (`feature-common.js:preflightClaimDisposal`).
 
@@ -133,7 +134,7 @@ Dependencies: `feature.js → {feature-common, feature-shell, looper-report}`; `
 
 | Module | Responsibility | Key symbols |
 | --- | --- | --- |
-| `init.js` | `agf init`: verify/initialize the physical Git root, skip complete setups, reserve `.agentflow/` exclusively, empty bootstrap, scaffold config/notebook/backlog/registry/placeholders, adopt AGENTS directives (en/zh-TW), detect `codex`/`claude` routes, commit only generated paths, retire the marker | `initialize`, `locale` (internal: `repository`, `complete`, `scan`, `preflight`, `detect`, `instructions`, `adopt`) |
+| `init.js` | `agf init`: verify/initialize the physical Git root, skip complete setups, reserve `.agentflow/` exclusively, empty bootstrap, scaffold config/notebook/backlog/registry/placeholders, adopt AGENTS directives (always English since 9.1.12; generated records stay en/zh-TW), detect `codex`/`claude` routes, commit only generated paths, retire the marker | `initialize`, `locale` (internal: `repository`, `complete`, `scan`, `preflight`, `detect`, `instructions`, `adopt`) |
 
 Dependencies: `init.js → {feature-common (discover, git with hooks disabled, noOperation, roundHeadings), looper-state (checked_file, powershell)}`. Always uses the default ag-dir `.agentflow`. Never migrates, repairs, pushes, writes shell profiles or calls models; partial/legacy/ambiguous state is left for host reconciliation.
 

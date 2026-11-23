@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Agentflow 9 (skill/plugin/package name `agentflow`, version `9.1.11`; the 9.0.0-beta.1 prerelease was named aglite) is an **AI-agent skill**: a set of Markdown instructions that a coding assistant (Claude Code, Codex, Copilot, other hosts that support skills) loads to keep development work resumable. It gives a project a persistent "notebook" (devlog) where owner requests, decisions, answers and recovery pointers are saved, plus proportionate planning, review routing, Git delivery and isolated feature worktrees.
+Agentflow 9 (skill/plugin/package name `agentflow`, version `9.1.12`; the 9.0.0-beta.1 prerelease was named aglite) is an **AI-agent skill**: a set of Markdown instructions that a coding assistant (Claude Code, Codex, Copilot, other hosts that support skills) loads to keep development work resumable. It gives a project a persistent "notebook" (devlog) where owner requests, decisions, answers and recovery pointers are saved, plus proportionate planning, review routing, Git delivery and isolated feature worktrees.
 
 A small optional Node.js runtime behind one CLI, `agf`, has three bounded parts: the **looper** (`agf looper …`) executes a prepared queue of task groups in parallel Git worktrees, each task in a fresh agent session, and serially integrates results; the **terminal feature CLI** (`agf new-feature|merge-feature|drop-feature`, added in 9.1.0) runs the feature-worktree lifecycle from a shell; the **standalone initializer** (`agf init`, added in 9.1.2) creates Git plus the Agentflow scaffold in a fresh root without model calls.
 
@@ -15,7 +15,7 @@ Users: a human "owner" talking to a coding assistant ("host"). The host is the a
 - Stage later batches with `append-rounds` / `append-tasks`.
 - Feature worktrees: `new-feature`, `merge-feature`, `drop-feature` (host chat commands), or the terminal equivalents `agf new-feature|merge-feature|drop-feature` (aliases `newft`/`mergeft`/`dropft`).
 - Grouped parallel execution: `prepare-tasks`, `run-tasks`, `handle-tasks` → `agf looper run|status`; explicit post-run cleanup via `agf looper cleanup` or `run --cleanup`.
-- Configuration migration from older Agentflow 8 / earlier agentflow schemas (9–12, `aglite-5`) to schema 13.
+- Configuration migration from older Agentflow 8 / earlier agentflow schemas (9–13, `aglite-5`) to schema 14 (9.1.12; schema 13 → 14 only adds `switches.save-evidence: off` when absent).
 
 ## Technology stack
 
@@ -59,8 +59,9 @@ docs/agent/              this knowledge base (not shipped as part of the skill)
 | `skills/agentflow/references/planning.md` | Design/tracker criteria, `#specification-readiness-and-handoff` (9.1.11), `plan-mode`, gates. |
 | `skills/agentflow/references/spec-out.md` | `spec-out` command: staged specification toward an implementation-ready `design.md` + `tracker.md`; with `spec-out-template.md` (design template) and `spec-out-github.md` (GitHub collaboration, loaded only when selected) (9.1.11). |
 | `skills/agentflow/references/ux-prototype.md` | Unified method for authorized UX prototypes: isolation, fidelity, UX report, review tour, handoff (9.1.11). |
-| `skills/agentflow/references/review.md` | Worker settings, bounded assignment, planning routes, result review (incl. `#risk-triage`, 9.1.10), `3ways`. |
+| `skills/agentflow/references/review.md` | Worker settings, bounded assignment (worker prompts in English since 9.1.12), planning routes, result review (incl. `#risk-triage`, 9.1.10; intent/decision tracing and verification strength, 9.1.12), `3ways`. |
 | `skills/agentflow/references/deep-review.md` | `deep-review` command and automatic mid/high deep review: fresh-context inspection, adaptive checks, human handoff, review lessons (9.1.10). |
+| `skills/agentflow/references/verification.md` | Adaptive verification (9.1.12): one failure-driven method for choosing checks, state/formal-method proof limits, model-to-implementation correspondence, bounded repair and acceptance claims, shared by planning, implementation, review, deep review, acceptance/final-audit advisors, brownfield and looper repair/review/acceptance prompts. |
 | `skills/agentflow/references/simple-check.md` | `simple-check` command and the canonical adequacy/scope/minimality `#check` reused by planning and review. |
 | `skills/agentflow/references/features.md` | `new-feature`/`merge-feature`/`drop-feature`; `#terminal-cli` owns the `agf` feature commands. |
 | `skills/agentflow/references/looper.md` | Looper contract (owns execution behavior). |
@@ -105,7 +106,7 @@ Tests create real temporary Git repositories and spawn processes; many have 30 s
 
 ## Configuration
 
-- Consumer-project config: `<checkout>/<ag-dir>/ag.json`, schema 13 (the target schema is whatever `schema-version` the bundled template holds; `looper.js` reads it as `current_schema`). Template: `skills/agentflow/assets/.agentflow/ag.json`. Keys: `switches` (on/off switches, `plan-mode`, `plan-order`, `review-order`, `use-lang`, `ag-dir`, `notebook-name`), `pipeline-roles`, `model-family`, `external-workers`, optional `native-workers`, `looper-routes`, `looper-limits`, `next_update_date`, optional top-level `default-editor` (default `vscode` → runs `code`; used by `agf new-feature --open`). `switches.saving-mode` (`on|off`) is required since schema 13: hosts add `off` only when absent; the looper refuses missing/invalid values. `switches.save-evidence` (`on|off`, 9.1.11) is optional with default `off` and needs no schema bump or migration write; the looper (`looper.js:read_settings`) and feature CLI/initializer discovery (`feature-common.js:discover`) reject invalid explicit values.
+- Consumer-project config: `<checkout>/<ag-dir>/ag.json`, schema 14 since 9.1.12 (the target schema is whatever `schema-version` the bundled template holds; `looper.js` reads it as `current_schema`). Template: `skills/agentflow/assets/.agentflow/ag.json`. Keys: `switches` (on/off switches, `plan-mode`, `plan-order`, `review-order`, `use-lang`, `ag-dir`, `notebook-name`), `pipeline-roles`, `model-family`, `external-workers`, optional `native-workers`, `looper-routes`, `looper-limits`, `next_update_date`, optional top-level `default-editor` (default `vscode` → runs `code`; used by `agf new-feature --open`). `switches.saving-mode` (`on|off`) is required since schema 13: hosts add `off` only when absent; the looper refuses missing/invalid values. `switches.save-evidence` (`on|off`, default `off`) was added as optional in 9.1.11 and is required since schema 14 (9.1.12): host migration adds `off` only when absent; the looper (`looper.js:read_settings`) refuses missing/invalid values, and feature CLI/initializer discovery (`feature-common.js:discover`) stops on a missing key ("Configuration migration requires host continuation") or an invalid value.
 - Defaults are defined in prose in `references/configuration.md#discovery-and-validation` (ten Boolean switches). Since 9.1.11 the template sets `omit-wip: on`, matching the documented default (it was `off` before).
 - The bundled template's `looper-routes` now sets `task`/`repair`/`acceptance` to Codex CLI (`openai` catalog); new configurations replace these with detected defaults (`references/setup.md#detected-worker-defaults`), existing configs keep theirs.
 - Looper queue: `<run-root>/queue.json`, schema 2 (`references/looper.md#schema-and-inputs`).
@@ -119,7 +120,8 @@ Tests create real temporary Git repositories and spawn processes; many have 30 s
 - `skills/agentflow/scripts/looper-report.test.js` — progress/heartbeat formatting, summaries, saved reports, locale.
 - `skills/agentflow/scripts/looper-cleanup.test.js` — explicit cleanup preconditions, Trash identity proofs, crash/retry.
 - `skills/agentflow/scripts/feature.test.js`, `feature-merge.test.js`, `feature-shell.test.js` — feature CLI create/drop, merge/recovery, shell bindings and cd channel; since 9.1.8 also retained-record name reservation, feature-namespace artifact ignore preflight and main/feature artifact isolation across merges.
-- `skills/agentflow/scripts/init.test.js` — `agf init`: bootstrap and generated-only commit, repeat no-op, refusals (nested/linked/detached/feature roots, partial records, staged/untracked AGENTS), configuration-discovery warnings (bounded examples, en/zh-TW, no writes; 9.1.4), retained reservation on failure, concurrency, locale fallback, CLI route detection (skipped on Windows), exact two-part success message and saved-Reply notices in en/zh-TW (9.1.11).
+- `skills/agentflow/scripts/init.test.js` — `agf init`: bootstrap and generated-only commit, repeat no-op, refusals (nested/linked/detached/feature roots, partial records, staged/untracked AGENTS), configuration-discovery warnings (bounded examples, en/zh-TW, no writes; 9.1.4), retained reservation on failure, concurrency, locale fallback, CLI route detection (skipped on Windows), exact two-part success message and saved-Reply notices in en/zh-TW (9.1.11); `AGENTS.md` directives stay English even with `--lang zh-TW` (9.1.12).
+- `skills/agentflow/scripts/looper.test.js` also asserts (9.1.12) that review/repair/acceptance prompts contain `references/verification.md` exactly once ("ordinary review relay preserves configured fresh CLI selection …", "failed combined check requires repair, fresh checks, review, then acceptance").
 - Prompt behavior (SKILL.md/references) has **no automated tests** in this repo.
 
 ### Known Windows test failures (9.1.0)

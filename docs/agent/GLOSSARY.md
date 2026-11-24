@@ -28,7 +28,9 @@ Paths are relative to `skills/agentflow/`.
 - **Off-record** — exchange marked with `nolog:`/`noop:`/`off:`/`skip:`; executed but not recorded.
 - **Idle shortcut** — bare activation with no unfinished work: ask for next request without claiming.
 - **Round evidence** — workflow proof stored in `<ag-dir>/.tmp/A-NNN.md` or the artifact root's `A-NNN/`, linked from Current, kept out of the devlog body. Since 9.1.4 new evidence uses the compact selective fields Scope → Checks → Findings → Resume, omitting empty fields and routine output (`references/session.md#round-evidence`). Since 9.1.11 written only when evidence storage is on or explicitly requested.
-- **Evidence storage / `save-evidence`** — `ag.json` switch (`on|off`, default `off`; optional at schema 13 in 9.1.11, required at schema 14 since 9.1.12, migration adds `off` when absent) deciding whether separate round evidence is created and read during ordinary recovery. Off changes persistence only: checks, review, gates and dedicated operational records (looper queue/attempts, feature lifecycle retry records, migration identities) remain (`references/session.md#evidence-storage`, 9.1.11).
+- **Evidence storage / `save-evidence`** — `ag.json` switch (`on|off`, default `off`; optional at schema 13 in 9.1.11, required at schema 14 since 9.1.12, migration adds `off` when absent) deciding whether optional round evidence is created and read during ordinary recovery. Off changes persistence only: checks, review, gates and dedicated operational records (looper queue/attempts, feature lifecycle retry records, migration identities, pending batches) remain (`references/session.md#evidence-storage`, 9.1.11). Since 9.1.13 off skips only *optional* evidence; work files and needed drafts are always kept.
+- **Work files / already-needed drafts** — files produced to do the work and every original/revised draft the work already needs (including in-session and worker drafts), saved verbatim under the producing Ask's artifact root regardless of `save-evidence`; never generated solely for retention (`references/session.md#evidence-storage`, 9.1.13).
+- **Inline comment** — an owner note added beside earlier notebook text (e.g. `+jx:` initials) in a delivered round; counts as owner input only with attributable provenance or confirmation, and is handled via inline-comment intake at round start and before delivery (`references/session.md#inline-comment-intake`, 9.1.13).
 - **Artifact root (selected)** — where round artifacts, prepared looper runs and ignored-proof fallbacks go: `<ag-dir>/features/<name>/artifacts/` in a managed feature (9.1.8), otherwise `<ag-dir>/artifacts/` (`references/session.md#round-evidence`).
 - **Tracker** — task-state record (`## Tasks` with `T-n`, `## Recovery`); statuses TODO/DOING/BLOCKED/DONE.
 - **Design** — contract record with `## Invariants` (INV-n), `## Acceptance criteria` (AC-n), `## Validation`, `## Minimality check`.
@@ -64,12 +66,15 @@ Paths are relative to `skills/agentflow/`.
 - **Adaptive verification** — shared failure-driven method for choosing the cheapest discriminating check per named plausible violation, scoping state/formal-method claims, checking model-to-implementation correspondence and bounding repairs; adds no stage (`references/verification.md`, 9.1.12).
 - **Machine-facing vs user-facing text** — since 9.1.12 agent directives, worker assignments and looper prompts are written in English; `use-lang` governs only user-facing text (`references/configuration.md#discovery-and-validation`, `references/writing.md`).
 - **Human handoff** — owner-facing output of deep review; since 9.1.11 only blockers, decision-affecting uncertainty, sensitive actions needing human attention and actual approval requests, with routine risk/route accounting kept in enabled evidence; not an approval (`references/deep-review.md#human-handoff`).
+- **design-sync** — `design-sync [scope]`: read-only design-system/catalog/Figma/code inventory whose proposals are applied only item by item after owner approval in a devlog question; also offered at closeout when a task exposed a shared-design discrepancy (`references/design-sync.md`, 9.1.13).
+- **slide-guides** — opt-in defaults for slide outlines and decks: canonical report, projection style, interactive HTML controls, inline review annotations, rehearsal (`references/slide-guides.md`, 9.1.13).
 - **append-rounds / append-tasks** — stage a later batch.
 - **show-diff** — present a verified diff with reasons.
 - **plan-order / review-order** — route selection for planning and result review: `3ways|external|native|host` and `external|native|host`.
 - **Planner diversity** — preference that the reviewer comes from a different model family than the planner.
 - **gate-design / gate-tracker** — approval pauses before implementation / before the task-completion Reply and delivery; a gate-tracker pause closes the round via question closeout (9.1.11).
 - **pipeline-roles / model-family / tier** — role → tier (`best|better|basic|cheap`); catalog → `model/effort` string, split at final `/`.
+- **Latest selector** — a `model-family` model `gpt-latest-<family>` / `claude-latest-<family>` (bundled template default since 9.1.13) resolved at first dispatch to the newest stable concrete model supporting the exact effort; the concrete pair is kept for retries/resumes and configuration is never rewritten. Any other model string is literal (`references/review.md#worker-settings`, `scripts/looper-agent.js:resolve_latest`).
 
 ## Feature worktrees
 
@@ -93,7 +98,7 @@ Paths are relative to `skills/agentflow/`.
 - **Group** — ordered tasks run sequentially in one worktree (`.wts/aglite-<run_id>-<group>`); optional `depends_on` earlier groups.
 - **Task** — `## T01` section in `group-NNN.md` with `allowed_paths` and `checks`.
 - **Attempt** — one dispatch (UUID) with immutable `selection` and evidence under `attempts/<uuid>/`.
-- **Selection** — `{kind, provider, model, effort, executable?, source}` from `scripts/looper.js:select`.
+- **Selection** — `{kind, provider, model, effort, executable?, source}` from `scripts/looper.js:select`; after latest-selector resolution `model` is concrete and `selector` keeps the original selector (9.1.13).
 - **Route** — `looper-routes.task|repair|acceptance` `{kind, provider, model-family}`; review uses the acceptance route.
 - **Candidate** — group branch commit ready for integration.
 - **Ready list / lane** — FIFO of ready groups; one serial integration lane.

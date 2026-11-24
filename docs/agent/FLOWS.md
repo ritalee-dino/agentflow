@@ -1,6 +1,6 @@
 # Runtime flows
 
-Flows 1–4b are executed by the host following prompts (no code, no automated tests). Flows 5–11 are implemented in `skills/agentflow/scripts/` and covered by `looper*.test.js` / `feature*.test.js` / `init.test.js`. Paths are relative to `skills/agentflow/`.
+Flows 1–4c are executed by the host following prompts (no code, no automated tests). Flows 5–11 are implemented in `skills/agentflow/scripts/` and covered by `looper*.test.js` / `feature*.test.js` / `init.test.js`. Paths are relative to `skills/agentflow/`.
 
 ---
 
@@ -14,7 +14,7 @@ Pre-step (9.1.4, `SKILL.md` preamble): text after an unquoted `eli5:` through me
 2. Isolated looper task? Apply coordinator-supplied overrides (step 2; see flow 6 prompt).
 3. Verify physical directory, Git root/branch/worktrees; read `references/configuration.md`; reread live `ag.json` (step 3).
 4. Feature lifecycle command or `.wts/` path → `references/features.md`, bypassing the root notebook (step 4).
-5. Retained `<ag-dir>/.init-pending.owner` (also the default `.agentflow` when different) → initializer recovery first, blocking dependent work (`setup.md#standalone-initialization`). No notebook/history → `references/setup.md` (supported fresh Git setup runs `agf init`, flow 11); otherwise bare activation with no work → idle shortcut (ask for next request, no claim) (step 5).
+5. Retained `<ag-dir>/.init-pending.owner` (also the default `.agentflow` when different) → initializer recovery first, blocking dependent work (`setup.md#standalone-initialization`). No notebook/history → `references/setup.md` (supported fresh Git setup runs `agf init`, flow 11); otherwise bare activation with no work → idle shortcut (ask for next request, no claim) (step 5). Since 9.1.13 the idle check also reads the latest delivered round's inline owner comments (`session.md#inline-comment-intake`); a pending or ambiguous note requires owned recovery instead of idle.
 6. Owned work → `references/session.md`: claim → recover → capture owner input → project rules/invariants → task work (step 6).
 7. Owner-facing host also runs the release check when `next_update_date` is due (`configuration.md#session-release-check`).
 
@@ -25,8 +25,9 @@ Trigger: actual task or Q&A on-record.
 ```
 resolve notebook path
 → create .<notebook>.owner with wx  {session, ask, claimed_at}     session.md#notebook-ownership
-→ apply save-evidence (off: skip separate evidence links)          session.md#evidence-storage
-→ read active Ask, STATUS Current, tracker Recovery, permitted evidence   session.md#activate-and-recover step 3
+→ apply save-evidence (off: skip optional evidence links; work files/drafts kept)   session.md#evidence-storage
+→ read active Ask, STATUS Current, tracker Recovery, permitted evidence, retained work files   session.md#activate-and-recover step 3
+→ inline-comment intake: latest delivered round + linked earlier replies (9.1.13)   session.md#inline-comment-intake
 → capture unrecorded owner messages with "+ " prefix                step 4
 → read project rules, sys-invariants                                step 5
 → planning criteria / gates                                         planning.md
@@ -37,6 +38,8 @@ resolve notebook path
 → result review → risk triage low|mid|high                         review.md#risk-triage
    implementation-result review answers state level + short reason (9.1.12)
    mid/high (or explicit deep-review) → fresh-context deep inspection → human handoff   deep-review.md
+→ repeat inline-comment intake; answer each note with its source or carry it with a blocker (9.1.13)
+→ shared design asset changed + concrete discrepancy → optional design-sync offer as devlog question (9.1.13, flow 4c)
 → render Reply + next Ask + STATUS in one write                     delivery.md#notebook-and-delivery
 → task commit → owner-edit commit → push (if switches on)          delivery.md#git-delivery
 → settle workers, release own claim                                 session.md#notebook-ownership
@@ -79,6 +82,21 @@ recover target contract, interview handoff, answers, tracker, source/prototype r
 
 Each invocation states the next scoped outcome and resumes the same contract; stage-limited requests stop at their authorized outcome with readiness gaps explicit. No implementation, prototype, publication or messaging authority is added at any step.
 
+## 4c. `design-sync` (9.1.13)
+
+Trigger: unquoted `design-sync [scope]`, a saved synchronization approval on resume, or a closeout offer from flow 2. Source: `references/design-sync.md`. Prompt-defined, inside the owned round of flow 2.
+
+```
+resolve scope (unambiguous affected component/token/icon, else ask)
+→ read-only inventory: design-system assets, Storybook/catalogs, Figma, code; source of truth, revisions, consumers
+   (closeout offer: reuse existing findings only, no new inventory, task delivery not delayed)
+→ nothing actionable → report and stop
+→ save items (stable IDs, revision, exact change, consumers, dependencies, check) as one devlog approval question
+→ yield via question closeout (flow 2); owner lists approved IDs in "- ans:"
+→ next round: recheck approved items and current sources → apply approved items with per-destination authority
+   → defer unmet dependencies, re-ask changed/expanded items → verify → report applied/deferred/blocked
+```
+
 ---
 
 ## 5. `agf looper status`
@@ -97,8 +115,8 @@ Trigger: host (or owner in a terminal) runs `agf looper run <run-root> [--cleanu
 0. If `queue.cleanup` exists, `looper-cleanup.js:assert_completed` + matching completed cleanup → return 0 without settings, claims or workers.
 1. `load(root)` → `validate`: rejects legacy fields, requires schema 2, physical Git-root `repo`, valid `target_branch`, full `base_commit`, authorization booleans, registered checks, `group-NNN.md` files with exactly one `## <task>` heading per task, safe `allowed_paths` (not `.git`/`.wts`/`.aglite-records`), `depends_on` only to earlier groups, no unregistered group files.
 2. `request_text`: request file must be regular, UTF-8, sha256 = `request_sha256`.
-3. `read_settings(q.repo)`: walks repo for `ag.json` (skips `.git`, `node_modules`, `.aglite-records`, nested checkouts), exactly one canonical config, schema = bundled template `current_schema` (14 since 9.1.12) or absent, `switches.saving-mode` and `switches.save-evidence` (required since 9.1.12; optional in 9.1.11) exactly `on|off` — a missing key throws "missing: migrate via the owner-facing host", `looper-limits`. Returns sha256 digest.
-4. If any group needs a new task attempt, `select(settings, 'task')` validates routes before any claim/worktree.
+3. `read_settings(q.repo)`: walks repo for `ag.json` (skips `.git`, `node_modules`, `.aglite-records`, nested checkouts), exactly one canonical config, schema = bundled template `current_schema` (14 since 9.1.12) or absent, no legacy key (`feature-common.js:legacySetting`, 9.1.13), `switches.saving-mode` and `switches.save-evidence` (required since 9.1.12; optional in 9.1.11) exactly `on|off` — a missing key throws "missing: migrate via the owner-facing host", `looper-limits`. Returns sha256 digest.
+4. If any group needs a new task attempt, `select(settings, 'task')` validates routes before any claim/worktree (latest selectors are not resolved here; that happens at dispatch, 6c).
 5. Claims: `.queue.owner` and `<git-common-dir>/aglite-target-<sha>.owner` via `acquire` (takeover only if old claim process and recorded children are proved stopped).
 6. Reconcile: landed-but-unrecorded integration (`phase: landing` and `looper-integration.js:landing_applied` — result is an ancestor of the target, otherwise a saved reflog-coverage digest must prove it was never applied) → `finished_merge`; `adopt_target(q, save, 'startup')` records compatible forward movement, failure → `lane_error`; re-prove done tasks/groups; resume pending ordinary-review handoffs; check notebooks of in-progress groups.
 7. Import `inbox/answers.json` (owner-only questions reject `source: host`; conflicting answers rejected).
@@ -116,7 +134,10 @@ Trigger: host (or owner in a terminal) runs `agf looper run <run-root> [--cleanu
 looper-integration.js:prepare_group   create .wts/aglite-<run>-<group> on branch from expected_head; add .aglite-records excludes
 → create .aglite-records/ (no notebook scaffold)
 → write inputs/<group>-<task>.md from task_text (wx)
-→ invoke('task')                       select route, save attempt {id, selection, expected_head, previous_round}
+→ invoke('task')                       new attempt: resolve_worker → select route; latest selector →
+                                       looper-agent.js:resolve_latest (catalog process, 15 s) → concrete model (9.1.13);
+                                       save attempt {id, selection, expected_head, previous_round}
+                                       (renewed attempt after a failed/host-retried one reuses the saved selection)
    ├─ native: write attempts/<id>/assignment.md, add handoff, return null until inbox/<id>.json exists
    └─ cli:    looper-agent.js:launch_agent → execute (20 min timeout) → parse result
               (failures after attempt-dir creation save attempts/<id>/failure.json)
@@ -168,7 +189,8 @@ Tests: "native dispatch waits for exact stopped inbox result and never substitut
 ## 8. Questions and recovery
 
 - Blocked/needs_owner results create `q.questions[]` entries; only that group blocks.
-- Host writes `inbox/answers.json` `[{id, answer, source?}]`; next run imports. `source: host` on a CLI task keeps the exact attempt for a technical recheck (`retry_attempt`); `source: owner` drops the attempt (native attempts need `writer_stopped: true`).
+- Host writes `inbox/answers.json` `[{id, answer, source?}]`; next run imports. `source: host` on a CLI task keeps the exact attempt for a technical recheck (`retry_attempt`); if that recheck needs a new attempt, it reuses the saved concrete selection rather than reselecting (9.1.13); `source: owner` drops the attempt (native attempts need `writer_stopped: true`).
+- Latest-selector lookup failure (9.1.13) happens before any attempt is saved: the error names `<file> model-family.<catalog>.<tier> (<selector>/<effort>)` and becomes a group question; a later run after an answer resolves again. `ag.json` is never modified (test "looper CLI blocks a new selector when discovery fails and leaves configuration intact").
 - A nested ordinary-review handoff that was never dispatched may be cancelled with host-attested `outcome: "blocked", dispatched: false` (no `writer_stopped`).
 - Crash recovery: `commit_intent` lets an interrupted commit finish; `phase: landing` whose result is already in the target is recorded once, otherwise reflog coverage must prove it was never applied before carrying forward (removed result/unknown effect blocks); `phase: prepared` integration requires host reconciliation; unsettled processes set `uncertain` and keep claims.
 
@@ -240,6 +262,7 @@ Tests: `scripts/init.test.js` ("unborn Git bootstrap, generated-only commit …"
 | --- | --- |
 | `validate` / `read_settings` / `select` failures | thrown before claims or worktrees → `agf` exit 1 |
 | task failure / blocked result | group question, other groups continue → exit 2 |
+| latest-selector catalog failure (unavailable executable/transport, override, no eligible or equally ranked models) | generic message with the `model-family` key (provider diagnostics withheld); group question, no attempt saved → exit 2; unsettled catalog process → `uncertain` |
 | integration failure | group question with `suspended_integration`, or `lane_error` if target unsafe (branch change, rewrite, foreign operation, missing completed integration) |
 | unsettled process (`error.unsettled`) | `uncertain = true`; stop dispatch; claims retained |
 | `save()` failure | `persistence_failed`; claims retained |
